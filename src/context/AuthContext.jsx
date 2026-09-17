@@ -22,29 +22,90 @@ import { getFriendlyAuthErrorMessage } from '../services/firebase/authErrors';
 import { AuthContext } from './authContextInstance';
 
 export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(() => Boolean(auth));
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && localStorage.getItem('klyvora_guest_mode') === 'true') {
+        return {
+          uid: 'guest_klyvora_user',
+          displayName: 'Guest Creator',
+          email: 'guest@klyvora.app',
+          emailVerified: true,
+          isAnonymous: true,
+        };
+      }
+    } catch {}
+    return null;
+  });
+  const [loading, setLoading] = useState(() => Boolean(auth && isFirebaseConfigured));
   const [authError, setAuthError] = useState(null);
 
-  // Subscribe to Firebase auth state changes
+  // Subscribe to Firebase auth state changes with safety timeout
   useEffect(() => {
-    if (!auth) return;
+    const isGuest = typeof window !== 'undefined' && localStorage.getItem('klyvora_guest_mode') === 'true';
 
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        setCurrentUser(user);
-        setLoading(false);
-        setAuthError(null);
-      },
-      (error) => {
-        console.error('[Klyvora Auth] State listener error:', error);
-        setAuthError(getFriendlyAuthErrorMessage(error));
-        setLoading(false);
+    if (!auth || !isFirebaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    // Safety timeout: loading will NEVER hang longer than 1500ms under any network conditions
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        (user) => {
+          clearTimeout(safetyTimer);
+          if (user) {
+            setCurrentUser(user);
+            try {
+              localStorage.removeItem('klyvora_guest_mode');
+            } catch {}
+          } else if (isGuest) {
+            // Keep guest session active
+          } else {
+            setCurrentUser(null);
+          }
+          setLoading(false);
+          setAuthError(null);
+        },
+        (error) => {
+          clearTimeout(safetyTimer);
+          console.warn('[Klyvora Auth] State listener notice:', error);
+          setAuthError(getFriendlyAuthErrorMessage(error));
+          setLoading(false);
+        }
+      );
+    } catch (err) {
+      clearTimeout(safetyTimer);
+      console.warn('[Klyvora Auth] Failed to attach auth listener:', err);
+      setLoading(false);
+    }
+
+    return () => {
+      clearTimeout(safetyTimer);
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
       }
-    );
+    };
+  }, []);
 
-    return () => unsubscribe();
+  const continueAsGuest = useCallback(() => {
+    const guestUser = {
+      uid: 'guest_klyvora_user',
+      displayName: 'Guest Creator',
+      email: 'guest@klyvora.app',
+      emailVerified: true,
+      isAnonymous: true,
+    };
+    setCurrentUser(guestUser);
+    try {
+      localStorage.setItem('klyvora_guest_mode', 'true');
+    } catch {}
+    return guestUser;
   }, []);
 
   const clearAuthError = useCallback(() => {
@@ -129,10 +190,16 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
-   * Sign out current user.
+   * Sign out current user and clear any local sessions.
    */
   const logOut = useCallback(async () => {
-    if (!auth) return;
+    try {
+      localStorage.removeItem('klyvora_guest_mode');
+    } catch {}
+    if (!auth) {
+      setCurrentUser(null);
+      return;
+    }
     setAuthError(null);
 
     try {
@@ -274,6 +341,7 @@ export function AuthProvider({ children }) {
       changePassword,
       deleteUserAccount,
       clearAuthError,
+      continueAsGuest,
     }),
     [
       currentUser,
@@ -290,6 +358,7 @@ export function AuthProvider({ children }) {
       changePassword,
       deleteUserAccount,
       clearAuthError,
+      continueAsGuest,
     ]
   );
 

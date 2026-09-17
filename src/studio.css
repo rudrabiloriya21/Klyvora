@@ -4300,6 +4300,36 @@
   width: 100%;
 }
 
+.auth-guest-option {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.btn-guest-direct {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  background: rgba(6, 182, 212, 0.06);
+  border: 1px dashed rgba(6, 182, 212, 0.35);
+  border-radius: 10px;
+  color: #06b6d4;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-guest-direct:hover {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.6);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
 /* Verification Screen Inner Elements */
 .verification-card-inner {
   display: flex;
@@ -6049,4 +6079,151 @@
   .preview-about-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Error Boundary Recovery Interface */
+.error-boundary-screen {
+  min-height: 100vh;
+  background: #06070a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  color: #f3f4f6;
+}
+
+.error-boundary-card {
+  position: relative;
+  z-index: 10;
+  max-width: 540px;
+  width: 100%;
+  background: rgba(13, 16, 26, 0.85);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 20px;
+  padding: 40px 32px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 30px rgba(239, 68, 68, 0.1);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.error-boundary-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.error-boundary-icon {
+  color: #ef4444;
+}
+
+.error-boundary-badge {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  margin-bottom: 14px;
+}
+
+.error-boundary-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.error-boundary-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0 0 24px 0;
+}
+
+.error-boundary-debug {
+  width: 100%;
+  text-align: left;
+  background: rgba(6, 7, 10, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 24px;
+  font-size: 11px;
+}
+
+.error-debug-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ef4444;
+  margin-bottom: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.error-debug-message {
+  color: rgba(255, 255, 255, 0.7);
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.error-boundary-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.error-boundary-actions button {
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.error-boundary-actions .btn-primary-action {
+  background: linear-space-gradient, #06b6d4;
+  background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+  color: #050608;
+  border: none;
+  font-weight: 700;
+}
+
+.error-boundary-actions .btn-primary-action:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.error-boundary-actions .btn-secondary-action {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f3f4f6;
+}
+
+.error-boundary-actions .btn-secondary-action:hover {
+  background: rgba(255, 255, 255, 0.1);
 }

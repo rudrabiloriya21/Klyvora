@@ -4,7 +4,7 @@ import AuthLayout from './AuthLayout';
 import { useAuth } from '../../context/useAuth';
 
 export default function LoginPage({ onNavigate, redirectPath }) {
-  const { signIn, signInWithGoogle, isConfigured } = useAuth();
+  const { signIn, signInWithGoogle, isConfigured, continueAsGuest } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -249,6 +249,23 @@ export default function LoginPage({ onNavigate, redirectPath }) {
           )}
         </button>
       </form>
+
+      {/* Guest Mode Direct Access */}
+      <div className="auth-guest-option">
+        <button
+          type="button"
+          onClick={() => {
+            if (continueAsGuest) continueAsGuest();
+            const destination = redirectPath || '#/dashboard';
+            if (onNavigate) onNavigate(destination);
+            else window.location.hash = destination;
+          }}
+          className="btn-guest-direct font-mono"
+        >
+          <Sparkles size={14} className="text-cyan" />
+          <span>Instant Studio Demo (Guest Access)</span>
+        </button>
+      </div>
 
       {/* Switch to Sign Up */}
       <div className="auth-switch-row font-mono">
