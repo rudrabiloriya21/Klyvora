@@ -1,0 +1,81 @@
+import React, { useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+
+export default function FinalCTA({ onEnterExperience }) {
+  const [isEntering, setIsEntering] = useState(false);
+  const [entered, setEntered] = useState(false);
+
+  const handleEnter = () => {
+    setIsEntering(true);
+    setTimeout(() => {
+      setIsEntering(false);
+      setEntered(true);
+      if (onEnterExperience) {
+        onEnterExperience();
+      }
+    }, 1200);
+  };
+
+  return (
+    <section className="final-cta-section" aria-labelledby="cta-heading">
+      {/* Horizon Line Glow Effect */}
+      <div className="horizon-glow-wrap" aria-hidden="true">
+        <div className="horizon-line" />
+        <div className="horizon-radiance" />
+      </div>
+
+      <div className="container final-cta-container">
+        <div className="badge-pill font-mono final-cta-badge">
+          <span className="badge-dot" />
+          <span>CINEMATIC LAUNCH SEQUENCE</span>
+        </div>
+
+        <h2 id="cta-heading" className="final-cta-title font-display">
+          Ready to explore <span className="gradient-text">Klyvora?</span>
+        </h2>
+
+        <p className="final-cta-desc">
+          Step into a digital experience designed with purpose and engineered for what comes next.
+          Presented with pride by Xeorvia.
+        </p>
+
+        <div className="final-cta-action">
+          <button
+            type="button"
+            onClick={handleEnter}
+            disabled={isEntering}
+            className={`btn btn-primary final-cta-btn ${isEntering ? 'btn-launching' : ''} ${
+              entered ? 'btn-launched' : ''
+            }`}
+            id="enter-klyvora-btn"
+          >
+            {isEntering ? (
+              <>
+                <span className="spinner-launch" />
+                <span>Synchronizing Environment...</span>
+              </>
+            ) : entered ? (
+              <>
+                <Check size={18} />
+                <span>Experience Initialized</span>
+              </>
+            ) : (
+              <>
+                <span>Enter Klyvora</span>
+                <ArrowRight size={18} />
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="final-cta-meta font-mono">
+          <span>KLYVORA // XEORVIA COLLABORATION</span>
+          <span className="meta-sep">·</span>
+          <span>ALL SYSTEMS NOMINAL</span>
+          <span className="meta-sep">·</span>
+          <span>VERSION 2.4</span>
+        </div>
+      </div>
+    </section>
+  );
+}

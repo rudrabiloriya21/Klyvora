@@ -1,0 +1,1338 @@
+import React, { useState } from 'react';
+import {
+  ChevronUp,
+  ChevronDown,
+  Copy,
+  Trash2,
+  CheckCircle,
+  MessageCircle,
+  Send,
+  Plus,
+  Sparkles,
+  Star,
+  ShieldCheck,
+} from 'lucide-react';
+import { storageService } from '../../services/storageService';
+
+export default function LiveWebsiteRenderer({
+  project,
+  selectedSectionId,
+  onSelectSection,
+  onMoveSectionUp,
+  onMoveSectionDown,
+  onDuplicateSection,
+  onDeleteSection,
+  onAddSectionClick,
+  isInteractiveMode = false, // When true, no selection borders appear (pure presentation preview)
+  workspaceMode = 'ai',
+  activePageSlug = 'home',
+  onNavigatePage,
+}) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [formSuccess, setFormSuccess] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+
+  const theme = project.theme || {};
+  const brand = project.brand || {};
+  const homePage = project.pages?.find((p) => p.isHome) || project.pages?.[0];
+  const allHomeSections = (homePage?.sections || []).filter((s) => !s.hidden);
+
+  // -------------------------------------------------------------
+  // Dynamic Page Resolution (Home, About, Menu, Contact, or 404)
+  // -------------------------------------------------------------
+  const resolvePageSections = () => {
+    const slug = (activePageSlug || 'home').toLowerCase().trim();
+
+    // 1. Check if an explicit page matches in project.pages
+    const explicitPage = (project.pages || []).find(
+      (p) => p.slug?.toLowerCase() === slug || (slug === 'home' && p.isHome)
+    );
+    if (explicitPage && explicitPage.sections?.length > 0) {
+      return {
+        sections: explicitPage.sections.filter((s) => !s.hidden),
+        isNotFound: false,
+        pageTitle: explicitPage.title || slug,
+      };
+    }
+
+    // 2. Default Home page
+    if (slug === 'home' || slug === '') {
+      return { sections: allHomeSections, isNotFound: false, pageTitle: 'Home' };
+    }
+
+    // 3. Virtual "About" page
+    if (slug === 'about' || slug === 'story' || slug === 'our-story') {
+      const navSec = allHomeSections.find((s) => s.type === 'navigation');
+      const aboutSec = allHomeSections.find((s) => s.type === 'about');
+      const featSec = allHomeSections.find((s) => s.type === 'features');
+      const testSec = allHomeSections.find((s) => s.type === 'testimonials');
+      const footSec = allHomeSections.find((s) => s.type === 'footer');
+
+      const aboutBanner = {
+        id: 'virt_about_banner',
+        type: 'hero',
+        name: 'About Page Banner',
+        props: {
+          badge: 'OUR STORY & PHILOSOPHY',
+          heading: `The ${brand.businessName || 'Luma & Bean'} Philosophy`,
+          subheading:
+            brand.description ||
+            'Dedicated to natural fermentation, organic ingredients, and authentic culinary craftsmanship.',
+          alignment: 'center',
+          primaryBtnText: 'Explore Menu',
+          primaryBtnUrl: '#menu',
+          secondaryBtnText: 'Visit Our Space',
+          secondaryBtnUrl: '#contact',
+        },
+      };
+
+      const resolved = [navSec, aboutBanner, aboutSec, featSec, testSec, footSec].filter(Boolean);
+      return { sections: resolved, isNotFound: false, pageTitle: 'About Us' };
+    }
+
+    // 4. Virtual "Menu" page
+    if (slug === 'menu' || slug === 'products' || slug === 'daily-menu') {
+      const navSec = allHomeSections.find((s) => s.type === 'navigation');
+      const prodSec = allHomeSections.find((s) => s.type === 'products' || s.type === 'services');
+      const pricingSec = allHomeSections.find((s) => s.type === 'pricing');
+      const faqSec = allHomeSections.find((s) => s.type === 'faq');
+      const footSec = allHomeSections.find((s) => s.type === 'footer');
+
+      const menuBanner = {
+        id: 'virt_menu_banner',
+        type: 'hero',
+        name: 'Menu Page Banner',
+        props: {
+          badge: 'HANDCRAFTED PROVISIONS',
+          heading: `Daily Menu & Offerings`,
+          subheading:
+            'Prepared fresh every morning at dawn. Available at the counter or for pre-order via WhatsApp.',
+          alignment: 'center',
+          primaryBtnText: 'Order via WhatsApp',
+          primaryBtnUrl: '#whatsapp',
+          secondaryBtnText: 'Visit Luma & Bean',
+          secondaryBtnUrl: '#contact',
+        },
+      };
+
+      const resolved = [navSec, menuBanner, prodSec, pricingSec, faqSec, footSec].filter(Boolean);
+      return { sections: resolved, isNotFound: false, pageTitle: 'Menu & Offerings' };
+    }
+
+    // 5. Virtual "Contact" page
+    if (slug === 'contact') {
+      const navSec = allHomeSections.find((s) => s.type === 'navigation');
+      const contactSec = allHomeSections.find((s) => s.type === 'contact');
+      const faqSec = allHomeSections.find((s) => s.type === 'faq');
+      const footSec = allHomeSections.find((s) => s.type === 'footer');
+
+      const contactBanner = {
+        id: 'virt_contact_banner',
+        type: 'hero',
+        name: 'Contact Page Banner',
+        props: {
+          badge: 'VISIT & CONNECT',
+          heading: `Connect with ${brand.businessName || 'Luma & Bean'}`,
+          subheading: `Located at ${
+            brand.location || brand.contact?.address || 'our flagship cafe'
+          }. Reach out directly or visit our counter.`,
+          alignment: 'center',
+          primaryBtnText: 'Chat on WhatsApp',
+          primaryBtnUrl: '#whatsapp',
+        },
+      };
+
+      const resolved = [navSec, contactBanner, contactSec, faqSec, footSec].filter(Boolean);
+      return { sections: resolved, isNotFound: false, pageTitle: 'Contact & Location' };
+    }
+
+    // 6. Page Not Created Yet (404)
+    const navSec = allHomeSections.find((s) => s.type === 'navigation');
+    const footSec = allHomeSections.find((s) => s.type === 'footer');
+    return {
+      sections: [navSec, footSec].filter(Boolean),
+      isNotFound: true,
+      pageTitle: 'Page Not Created Yet',
+    };
+  };
+
+  const { sections, isNotFound, pageTitle } = resolvePageSections();
+
+  // -------------------------------------------------------------
+  // Universal Link and Action Dispatcher
+  // -------------------------------------------------------------
+  const navigateToPage = (slug) => {
+    if (onNavigatePage) {
+      onNavigatePage(slug);
+    }
+  };
+
+  const scrollToTargetSection = (targetId) => {
+    if (!targetId) return;
+    const clean = targetId.replace(/^#/, '').toLowerCase().trim();
+
+    let el =
+      document.getElementById(clean) ||
+      document.querySelector(`[data-section-type="${clean}"]`);
+
+    if (!el && (clean === 'reviews' || clean === 'testimonials')) {
+      el =
+        document.querySelector('[data-section-type="testimonials"]') ||
+        document.querySelector('.testimonials-area');
+    }
+    if (!el && (clean === 'menu' || clean === 'products')) {
+      el =
+        document.querySelector('[data-section-type="products"]') ||
+        document.querySelector('.products-area');
+    }
+    if (!el && (clean === 'contact' || clean === 'location' || clean === 'visit')) {
+      el =
+        document.querySelector('[data-section-type="contact"]') ||
+        document.querySelector('.contact-area');
+    }
+
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleLinkAction = (e, { url = '', label = '', actionType = '' }) => {
+    if (e) {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+
+    const normLabel = (label || '').toLowerCase().trim();
+    const normUrl = (url || '').trim();
+
+    // 1. WhatsApp Order / WhatsApp links
+    if (
+      normLabel.includes('whatsapp') ||
+      normUrl.includes('wa.me') ||
+      normUrl.includes('whatsapp') ||
+      normUrl === '#whatsapp' ||
+      actionType === 'whatsapp'
+    ) {
+      const rawDigits = (
+        brand.contact?.whatsapp ||
+        brand.contact?.phone ||
+        '15552348901'
+      ).replace(/[^0-9]/g, '');
+      const waUrl = `https://wa.me/${rawDigits}?text=${encodeURIComponent(
+        `Hello ${brand.businessName || 'Luma & Bean'}! I would like to place an order.`
+      )}`;
+      window.open(waUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // 2. Phone Call (tel:)
+    if (normUrl.startsWith('tel:') || actionType === 'tel' || normLabel.includes('call')) {
+      const tel = normUrl.startsWith('tel:')
+        ? normUrl
+        : `tel:${brand.contact?.phone || '+15552348901'}`;
+      window.open(tel, '_self');
+      return;
+    }
+
+    // 3. Email (mailto:)
+    if (normUrl.startsWith('mailto:') || actionType === 'mailto' || normLabel.includes('email')) {
+      const mailto = normUrl.startsWith('mailto:')
+        ? normUrl
+        : `mailto:${brand.contact?.email || 'hello@domain.com'}`;
+      window.open(mailto, '_self');
+      return;
+    }
+
+    // 4. External Absolute Web Links (https:// or http://)
+    if (normUrl.startsWith('http://') || normUrl.startsWith('https://')) {
+      window.open(normUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // 5. Explicit "Visit Luma & Bean" / Location Scroll
+    if (
+      normLabel.includes('visit') ||
+      normLabel.includes('location') ||
+      normLabel.includes('find us')
+    ) {
+      if (activePageSlug === 'home') {
+        scrollToTargetSection('contact');
+      } else {
+        navigateToPage('home');
+        setTimeout(() => scrollToTargetSection('contact'), 200);
+      }
+      return;
+    }
+
+    // 6. Explicit "Reviews" / "Testimonials"
+    if (
+      normLabel.includes('review') ||
+      normLabel.includes('testimonial') ||
+      normUrl === '#reviews' ||
+      normUrl === '#testimonials'
+    ) {
+      if (activePageSlug === 'home') {
+        scrollToTargetSection('testimonials');
+      } else {
+        navigateToPage('home');
+        setTimeout(() => scrollToTargetSection('testimonials'), 200);
+      }
+      return;
+    }
+
+    // 7. "Explore the Menu" / "Menu"
+    if (
+      normLabel.includes('explore the menu') ||
+      normLabel.includes('explore menu') ||
+      normLabel.includes('view daily menu') ||
+      normLabel === 'menu' ||
+      normLabel === 'daily menu' ||
+      normUrl === '#menu' ||
+      normUrl === '/menu' ||
+      normUrl === 'menu' ||
+      normUrl === '#products'
+    ) {
+      navigateToPage('menu');
+      return;
+    }
+
+    // 8. "About" / "Story"
+    if (
+      normLabel === 'about' ||
+      normLabel === 'story' ||
+      normLabel === 'our story' ||
+      normLabel.includes('about us') ||
+      normUrl === '#about' ||
+      normUrl === '/about' ||
+      normUrl === 'about'
+    ) {
+      navigateToPage('about');
+      return;
+    }
+
+    // 9. "Contact"
+    if (
+      normLabel === 'contact' ||
+      normLabel === 'contact us' ||
+      normLabel === 'get in touch' ||
+      normUrl === '#contact' ||
+      normUrl === '/contact' ||
+      normUrl === 'contact'
+    ) {
+      navigateToPage('contact');
+      return;
+    }
+
+    // 10. "Home"
+    if (
+      normLabel === 'home' ||
+      normUrl === '#home' ||
+      normUrl === '/' ||
+      normUrl === '/home' ||
+      normUrl === 'home' ||
+      normUrl === '#/' ||
+      normUrl === '' ||
+      normUrl === '#'
+    ) {
+      navigateToPage('home');
+      const scrollRoot = document.querySelector('.canvas-scroll-container') || window;
+      scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // 11. In-page anchor link (e.g. #faq, #pricing, #features)
+    if (normUrl.startsWith('#')) {
+      const targetSec = normUrl.slice(1);
+      if (targetSec) {
+        scrollToTargetSection(targetSec);
+        return;
+      }
+    }
+
+    // 12. Explicit page slug requested: e.g. /custom-page
+    const cleanSlug = normUrl.replace(/^[/#!]+/, '').trim();
+    if (cleanSlug) {
+      navigateToPage(cleanSlug);
+      return;
+    }
+
+    // Default fallback: navigate to home safely
+    navigateToPage('home');
+  };
+
+  const handleContactSubmit = (e) => {
+    e.preventDefault();
+    if (!contactForm.name || !contactForm.email) return;
+
+    // Record submission into project inquiry inbox
+    storageService.addFormSubmission(project.id, {
+      formType: 'Contact Inquiry',
+      data: { ...contactForm },
+    });
+
+    setFormSuccess(true);
+    setContactForm({ name: '', email: '', message: '' });
+  };
+
+  return (
+    <div
+      className="rendered-site-root"
+      style={{
+        '--site-primary': theme.primaryColor || '#8b5cf6',
+        '--site-secondary': theme.secondaryColor || '#06b6d4',
+        '--site-accent': theme.accentColor || '#ec4899',
+        '--site-bg': theme.bgColor || '#07080c',
+        '--site-surface': theme.surfaceColor || '#0c0e15',
+        '--site-text': theme.textColor || '#f8fafc',
+        '--site-radius': theme.borderRadius || '14px',
+        '--site-font-heading': `'${theme.fontHeading || 'Syne'}', sans-serif`,
+        '--site-font-body': `'${theme.fontBody || 'Plus Jakarta Sans'}', sans-serif`,
+        '--site-max-width': theme.containerWidth || '1200px',
+        backgroundColor: 'var(--site-bg)',
+        color: 'var(--site-text)',
+        fontFamily: 'var(--site-font-body)',
+        minHeight: '100%',
+        position: 'relative',
+      }}
+    >
+      {/* Sub-page Breadcrumb Indicator */}
+      {activePageSlug !== 'home' && (
+        <div
+          className="preview-page-breadcrumb font-mono"
+          style={{
+            background: 'rgba(6, 182, 212, 0.12)',
+            borderBottom: '1px solid rgba(6, 182, 212, 0.25)',
+            padding: '8px 20px',
+            fontSize: '11px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            color: '#38bdf8',
+            position: 'sticky',
+            top: 0,
+            zIndex: 60,
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <span>
+            PAGE: <strong>{pageTitle.toUpperCase()}</strong> (/{activePageSlug})
+          </span>
+          <button
+            type="button"
+            onClick={() => navigateToPage('home')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#f8fafc',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              fontSize: '11px',
+            }}
+          >
+            &larr; Switch to Home
+          </button>
+        </div>
+      )}
+
+      {/* Render sections or Page Not Created Yet */}
+      {sections.map((section, index) => {
+        const isSelected = selectedSectionId === section.id;
+        const p = section.props || {};
+
+        return (
+          <div
+            key={section.id}
+            id={
+              section.type === 'contact'
+                ? 'contact'
+                : section.type === 'testimonials'
+                ? 'testimonials'
+                : section.type === 'products'
+                ? 'products'
+                : section.type === 'faq'
+                ? 'faq'
+                : section.type === 'pricing'
+                ? 'pricing'
+                : section.type === 'about'
+                ? 'about'
+                : section.id
+            }
+            data-section-type={section.type}
+            onClick={(e) => {
+              if (!isInteractiveMode) {
+                e.stopPropagation();
+                onSelectSection(section.id);
+              }
+            }}
+            className={`rendered-section-wrapper ${
+              !isInteractiveMode
+                ? workspaceMode === 'ai'
+                  ? 'canvas-ai-section'
+                  : 'canvas-inspectable-section'
+                : ''
+            } ${isSelected ? 'section-active-selection' : ''}`}
+          >
+            {/* In AI Workspace mode: Floating quick controls and edit tag */}
+            {!isInteractiveMode && workspaceMode === 'ai' && (
+              <div
+                className={`section-ai-hover-badge font-sans ${isSelected ? 'is-selected-badge' : ''}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  className="section-ai-badge-label"
+                  onClick={() => onSelectSection(section.id)}
+                  title="Click to prompt AI for this section"
+                >
+                  <Sparkles size={11} className="text-cyan" />
+                  <span>{section.name || section.type}</span>
+                </div>
+
+                {isSelected && (
+                  <div className="section-ai-quick-btns">
+                    {onMoveSectionUp && (
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={() => onMoveSectionUp(section.id)}
+                        className="section-ai-mini-btn"
+                        title="Move Up"
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                    )}
+                    {onMoveSectionDown && (
+                      <button
+                        type="button"
+                        disabled={index === sections.length - 1}
+                        onClick={() => onMoveSectionDown(section.id)}
+                        className="section-ai-mini-btn"
+                        title="Move Down"
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    )}
+                    {onDeleteSection && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteSection(section.id)}
+                        className="section-ai-mini-btn delete"
+                        title="Delete Section"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* In Manual Tools mode: Full manual movement & duplication toolbar */}
+            {!isInteractiveMode && workspaceMode === 'manual' && (
+              <div className="section-floating-toolbar" onClick={(e) => e.stopPropagation()}>
+                <span className="section-pill-tag font-mono">
+                  {section.name || section.type}
+                </span>
+
+                <div className="section-toolbar-btn-group">
+                  <button
+                    type="button"
+                    disabled={index === 0}
+                    onClick={() => onMoveSectionUp(section.id)}
+                    className="toolbar-action-btn"
+                    title="Move Up"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={index === sections.length - 1}
+                    onClick={() => onMoveSectionDown(section.id)}
+                    className="toolbar-action-btn"
+                    title="Move Down"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDuplicateSection(section.id)}
+                    className="toolbar-action-btn"
+                    title="Duplicate Section"
+                  >
+                    <Copy size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteSection(section.id)}
+                    className="toolbar-action-btn toolbar-delete-btn"
+                    title="Delete Section"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* SECTION RENDERERS */}
+
+            {/* 1. Announcement Bar */}
+            {section.type === 'announcement' && (
+              <div className="preview-announcement-bar">
+                <div className="preview-container announcement-inner">
+                  <span className="announcement-pill font-mono">{p.badge || 'NOTICE'}</span>
+                  <span className="announcement-text">{p.text}</span>
+                  {p.linkText && (
+                    <a
+                      href={p.linkUrl || '#'}
+                      className="announcement-link"
+                      onClick={(e) =>
+                        handleLinkAction(e, { url: p.linkUrl, label: p.linkText })
+                      }
+                    >
+                      {p.linkText} &rarr;
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 2. Navigation */}
+            {section.type === 'navigation' && (
+              <header className={`preview-navbar ${p.sticky ? 'is-sticky' : ''}`}>
+                <div className="preview-container nav-inner">
+                  <a
+                    href="#home"
+                    className="nav-brand-title"
+                    onClick={(e) => handleLinkAction(e, { url: '#home', label: 'Home' })}
+                  >
+                    <span className="brand-dot" />
+                    <span>{p.logoText || brand.businessName || 'Brand'}</span>
+                  </a>
+
+                  <nav className="desktop-links" aria-label="Main navigation">
+                    {(p.links || []).map((link, i) => {
+                      const isActiveLink =
+                        (link.label?.toLowerCase() === activePageSlug) ||
+                        (link.label?.toLowerCase() === 'home' && activePageSlug === 'home');
+                      return (
+                        <a
+                          key={i}
+                          href={link.url || '#'}
+                          className={`nav-item-link ${isActiveLink ? 'is-active-link' : ''}`}
+                          style={
+                            isActiveLink
+                              ? { color: 'var(--site-primary)', fontWeight: 600 }
+                              : {}
+                          }
+                          onClick={(e) =>
+                            handleLinkAction(e, { url: link.url, label: link.label })
+                          }
+                        >
+                          {link.label}
+                        </a>
+                      );
+                    })}
+                  </nav>
+
+                  {p.ctaText && (
+                    <a
+                      href={p.ctaUrl || '#contact'}
+                      className="preview-btn btn-brand nav-cta-btn"
+                      onClick={(e) =>
+                        handleLinkAction(e, { url: p.ctaUrl, label: p.ctaText })
+                      }
+                    >
+                      {p.ctaText}
+                    </a>
+                  )}
+
+                  <button
+                    type="button"
+                    className="mobile-hamburger"
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    aria-label="Toggle Menu"
+                  >
+                    &#9776;
+                  </button>
+                </div>
+
+                {mobileMenuOpen && (
+                  <div className="preview-mobile-menu">
+                    {(p.links || []).map((link, i) => (
+                      <a
+                        key={i}
+                        href={link.url || '#'}
+                        className="mobile-link"
+                        onClick={(e) => {
+                          setMobileMenuOpen(false);
+                          handleLinkAction(e, { url: link.url, label: link.label });
+                        }}
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                    {p.ctaText && (
+                      <a
+                        href={p.ctaUrl || '#contact'}
+                        className="preview-btn btn-brand"
+                        style={{ marginTop: '12px', textAlign: 'center' }}
+                        onClick={(e) => {
+                          setMobileMenuOpen(false);
+                          handleLinkAction(e, { url: p.ctaUrl, label: p.ctaText });
+                        }}
+                      >
+                        {p.ctaText}
+                      </a>
+                    )}
+                  </div>
+                )}
+              </header>
+            )}
+
+            {/* 3. Hero */}
+            {section.type === 'hero' && (
+              <section className={`preview-hero-section ${p.alignment || 'center'} ${p.imageUrl ? 'has-hero-image' : ''}`}>
+                <div className="preview-hero-ambient-glow" />
+                <div className="preview-container hero-inner">
+                  <div className={`hero-split-grid ${p.imageUrl ? 'with-visual' : 'solo'}`}>
+                    <div className="hero-text-content">
+                      {p.badge && (
+                        <div className="preview-pill-badge">
+                          <span className="dot-pulse" />
+                          <span>{p.badge}</span>
+                        </div>
+                      )}
+
+                      <h1 className="preview-hero-heading">{p.heading}</h1>
+                      <p className="preview-hero-sub">{p.subheading}</p>
+
+                      <div className="preview-hero-actions">
+                        {p.primaryBtnText && (
+                          <a
+                            href={p.primaryBtnUrl || '#'}
+                            className="preview-btn btn-brand"
+                            onClick={(e) =>
+                              handleLinkAction(e, {
+                                url: p.primaryBtnUrl,
+                                label: p.primaryBtnText,
+                              })
+                            }
+                          >
+                            {p.primaryBtnText} &rarr;
+                          </a>
+                        )}
+                        {p.secondaryBtnText && (
+                          <a
+                            href={p.secondaryBtnUrl || '#'}
+                            className="preview-btn btn-glass"
+                            onClick={(e) =>
+                              handleLinkAction(e, {
+                                url: p.secondaryBtnUrl,
+                                label: p.secondaryBtnText,
+                              })
+                            }
+                          >
+                            {p.secondaryBtnText}
+                          </a>
+                        )}
+                      </div>
+
+                      <div className="hero-trust-bar">
+                        <div className="hero-trust-stars">
+                          <div className="stars-cluster">
+                            {[...Array(5)].map((_, sIdx) => (
+                              <Star key={sIdx} size={13} fill="#f59e0b" color="#f59e0b" />
+                            ))}
+                          </div>
+                          <span className="trust-score font-mono">4.9 / 5.0</span>
+                        </div>
+                        <div className="hero-trust-divider" />
+                        <div className="hero-trust-badge">
+                          <ShieldCheck size={14} className="text-emerald" />
+                          <span>Verified Craft Standard</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {p.imageUrl && (
+                      <div className="hero-visual-col">
+                        <div className="hero-image-card">
+                          <img
+                            src={p.imageUrl}
+                            alt={p.heading || 'Hero'}
+                            className="hero-main-img"
+                            loading="eager"
+                          />
+                          <div className="hero-img-overlay" />
+                          <div className="hero-floating-chip">
+                            <span className="chip-indicator" />
+                            <span className="chip-text font-mono">✦ SIGNATURE SELECTION</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 4. About */}
+            {section.type === 'about' && (
+              <section className="preview-section about-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                  </div>
+
+                  <div className="preview-about-grid">
+                    <div className="preview-glass-card about-card-main">
+                      <p className="lead-paragraph">{p.paragraph1}</p>
+                      <p className="secondary-paragraph">{p.paragraph2}</p>
+                    </div>
+
+                    {p.highlights?.length > 0 && (
+                      <div className="preview-highlights-list">
+                        {p.highlights.map((h, i) => (
+                          <div key={i} className="preview-glass-card highlight-box">
+                            <div className="highlight-title-row">
+                              <span className="dot-check font-mono">0{i + 1}</span>
+                              <h3 className="highlight-title">{h.title}</h3>
+                            </div>
+                            <p className="highlight-desc">{h.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 5. Services */}
+            {section.type === 'services' && (
+              <section className="preview-section services-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                    {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
+                  </div>
+
+                  <div className="preview-cards-grid">
+                    {(p.items || []).map((s, idx) => (
+                      <div key={idx} className="preview-glass-card service-box">
+                        <span className="service-idx font-mono">0{idx + 1} // CAPABILITY</span>
+                        <h3 className="service-name">{s.title}</h3>
+                        <p className="service-text">{s.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 6. Products / Menu */}
+            {section.type === 'products' && (
+              <section className="preview-section products-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                    {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
+                  </div>
+
+                  <div className="preview-cards-grid products-grid">
+                    {(p.items || []).map((item, i) => (
+                      <div key={i} className="preview-glass-card product-box group">
+                        {item.imageUrl && (
+                          <div className="product-image-container">
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="product-img"
+                              loading="lazy"
+                            />
+                            {item.tag && (
+                              <span className="product-image-tag font-mono">{item.tag}</span>
+                            )}
+                          </div>
+                        )}
+                        <div className="product-box-body">
+                          <div className="product-head">
+                            <h3 className="product-title">{item.name}</h3>
+                            <span className="product-cost font-mono">{item.price}</span>
+                          </div>
+                          {!item.imageUrl && item.tag && (
+                            <span className="product-pill font-mono">{item.tag}</span>
+                          )}
+                          <p className="product-caption">{item.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 7. Features */}
+            {section.type === 'features' && (
+              <section className="preview-section features-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                  </div>
+
+                  <div className="preview-cards-grid features-grid">
+                    {(p.items || []).map((f, i) => (
+                      <div key={i} className="preview-glass-card feature-box">
+                        <div className="feature-header-row">
+                          <div className="feature-check-icon">
+                            <CheckCircle size={18} />
+                          </div>
+                          <span className="feature-idx font-mono">0{i + 1} // STANDARD</span>
+                        </div>
+                        <h3 className="feature-head">{f.title}</h3>
+                        <p className="feature-caption">{f.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 8. Testimonials */}
+            {section.type === 'testimonials' && (
+              <section className="preview-section testimonials-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                  </div>
+
+                  <div className="preview-cards-grid testimonials-grid">
+                    {(p.items || []).map((t, i) => {
+                      const initials = (t.author || 'P')
+                        .split(' ')
+                        .map((n) => n[0])
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase();
+
+                      return (
+                        <div key={i} className="preview-glass-card testimonial-box">
+                          <div className="testimonial-rating-row">
+                            <div className="stars-cluster">
+                              {[...Array(5)].map((_, sIdx) => (
+                                <Star key={sIdx} size={13} fill="#f59e0b" color="#f59e0b" />
+                              ))}
+                            </div>
+                            <span className="testimonial-verified font-mono">
+                              <ShieldCheck size={12} /> VERIFIED
+                            </span>
+                          </div>
+                          <p className="testimonial-body">&ldquo;{t.quote}&rdquo;</p>
+                          <div className="testimonial-footer">
+                            <div className="testimonial-avatar font-mono">{initials}</div>
+                            <div className="testimonial-author-meta">
+                              <strong className="testimonial-author">{t.author}</strong>
+                              {t.role && (
+                                <span className="testimonial-role font-mono">{t.role}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 9. Pricing */}
+            {section.type === 'pricing' && (
+              <section className="preview-section pricing-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                    {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
+                  </div>
+
+                  <div className="preview-cards-grid pricing-grid">
+                    {(p.plans || []).map((plan, i) => {
+                      const isPopular = plan.popular || i === 1;
+                      return (
+                        <div
+                          key={i}
+                          className={`preview-glass-card plan-box ${isPopular ? 'plan-box-popular' : ''}`}
+                        >
+                          {isPopular && (
+                            <div className="plan-popular-pill font-mono">
+                              ✦ MOST POPULAR
+                            </div>
+                          )}
+                          <h3 className="plan-name">{plan.name}</h3>
+                          <div className="plan-amount-row">
+                            <span className="plan-number">{plan.price}</span>
+                            {plan.period && <span className="plan-interval">{plan.period}</span>}
+                          </div>
+                          <p className="plan-description">{plan.desc}</p>
+                          <ul className="plan-bullets">
+                            {(plan.features || []).map((feat, idx) => (
+                              <li key={idx}>
+                                <CheckCircle size={14} className="check-bullet" />
+                                <span>{feat}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <a
+                            href="#contact"
+                            className={`preview-btn ${isPopular ? 'btn-brand' : 'btn-glass'} plan-submit-btn`}
+                            onClick={(e) =>
+                              handleLinkAction(e, {
+                                url: '#contact',
+                                label: `Select ${plan.name} Plan`,
+                              })
+                            }
+                          >
+                            Select Plan
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 10. FAQ */}
+            {section.type === 'faq' && (
+              <section className="preview-section faq-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                  </div>
+
+                  <div className="preview-faq-stack">
+                    {(p.items || []).map((item, i) => (
+                      <details
+                        key={i}
+                        className="preview-glass-card faq-card-details"
+                        open={i === 0}
+                      >
+                        <summary className="faq-query">{item.q}</summary>
+                        <div className="faq-reply">
+                          <p>{item.a}</p>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 11. Contact */}
+            {section.type === 'contact' && (
+              <section className="preview-section contact-area">
+                <div className="preview-container">
+                  <div className="preview-section-header">
+                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                    <h2 className="preview-section-title">{p.heading}</h2>
+                    {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
+                  </div>
+
+                  <div className="preview-contact-layout">
+                    {/* Left Channels */}
+                    <div className="preview-glass-card contact-card-left">
+                      <h3 className="channel-title">Direct Communication</h3>
+                      <p className="channel-desc">
+                        Reach out directly via our official channels or submit the inquiry form.
+                      </p>
+
+                      <div className="channel-items-list">
+                        {brand.contact?.email && (
+                          <div className="channel-row">
+                            <span className="channel-lbl font-mono">EMAIL</span>
+                            <a
+                              href={`mailto:${brand.contact.email}`}
+                              className="channel-val font-mono"
+                              onClick={(e) =>
+                                handleLinkAction(e, {
+                                  url: `mailto:${brand.contact.email}`,
+                                  label: 'Email',
+                                  actionType: 'mailto',
+                                })
+                              }
+                            >
+                              {brand.contact.email}
+                            </a>
+                          </div>
+                        )}
+                        {brand.contact?.phone && (
+                          <div className="channel-row">
+                            <span className="channel-lbl font-mono">PHONE</span>
+                            <a
+                              href={`tel:${brand.contact.phone}`}
+                              className="channel-val font-mono"
+                              onClick={(e) =>
+                                handleLinkAction(e, {
+                                  url: `tel:${brand.contact.phone}`,
+                                  label: 'Phone',
+                                  actionType: 'tel',
+                                })
+                              }
+                            >
+                              {brand.contact.phone}
+                            </a>
+                          </div>
+                        )}
+                        {brand.contact?.whatsapp && (
+                          <div className="channel-row">
+                            <span className="channel-lbl font-mono">WHATSAPP</span>
+                            <a
+                              href={`https://wa.me/${brand.contact.whatsapp.replace(
+                                /[^0-9]/g,
+                                ''
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="whatsapp-active-link"
+                              onClick={(e) =>
+                                handleLinkAction(e, {
+                                  label: 'WhatsApp Order',
+                                  actionType: 'whatsapp',
+                                })
+                              }
+                            >
+                              <MessageCircle size={15} />
+                              <span>Chat on WhatsApp</span>
+                            </a>
+                          </div>
+                        )}
+                        {brand.contact?.address && (
+                          <div className="channel-row">
+                            <span className="channel-lbl font-mono">LOCATION</span>
+                            <span className="channel-val">{brand.contact.address}</span>
+                          </div>
+                        )}
+                        {brand.contact?.openingHours && (
+                          <div className="channel-row">
+                            <span className="channel-lbl font-mono">HOURS</span>
+                            <span className="channel-val">{brand.contact.openingHours}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Form */}
+                    <div className="preview-glass-card contact-card-right">
+                      {formSuccess ? (
+                        <div className="preview-form-success">
+                          <CheckCircle size={36} className="success-check-icon" />
+                          <h4 className="success-headline">Inquiry Dispatched</h4>
+                          <p className="success-text">
+                            Thank you! Your message has been safely logged in the Studio inquiry
+                            inbox for {brand.businessName}.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setFormSuccess(false)}
+                            className="preview-btn btn-glass"
+                            style={{ marginTop: '14px' }}
+                          >
+                            Submit Another Test Message
+                          </button>
+                        </div>
+                      ) : (
+                        <form onSubmit={handleContactSubmit} className="preview-contact-form">
+                          <div className="preview-field">
+                            <label className="field-label font-mono">NAME *</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="Your full name"
+                              value={contactForm.name}
+                              onChange={(e) =>
+                                setContactForm({ ...contactForm, name: e.target.value })
+                              }
+                              className="field-input"
+                            />
+                          </div>
+
+                          <div className="preview-field">
+                            <label className="field-label font-mono">EMAIL ADDRESS *</label>
+                            <input
+                              type="email"
+                              required
+                              placeholder="you@domain.com"
+                              value={contactForm.email}
+                              onChange={(e) =>
+                                setContactForm({ ...contactForm, email: e.target.value })
+                              }
+                              className="field-input"
+                            />
+                          </div>
+
+                          <div className="preview-field">
+                            <label className="field-label font-mono">MESSAGE *</label>
+                            <textarea
+                              required
+                              rows="3"
+                              placeholder="How can we assist you?"
+                              value={contactForm.message}
+                              onChange={(e) =>
+                                setContactForm({ ...contactForm, message: e.target.value })
+                              }
+                              className="field-textarea"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            className="preview-btn btn-brand submit-contact-btn"
+                          >
+                            <span>Send Message</span>
+                            <Send size={15} />
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 12. Footer */}
+            {section.type === 'footer' && (
+              <footer className="preview-site-footer">
+                <div className="preview-container footer-top-row">
+                  <div className="footer-identity">
+                    <h3 className="footer-title">{p.businessName || brand.businessName}</h3>
+                    <p className="footer-slogan">{p.tagline || brand.tagline}</p>
+                  </div>
+                  <div className="footer-links-wrap">
+                    {(p.links || []).map((link, i) => (
+                      <a
+                        key={i}
+                        href={link.url || '#'}
+                        className="footer-link-anchor"
+                        onClick={(e) =>
+                          handleLinkAction(e, { url: link.url, label: link.label })
+                        }
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+                <div className="preview-container footer-bottom-row">
+                  <span className="copyright-line">
+                    {p.copyright ||
+                      `© ${new Date().getFullYear()} ${brand.businessName}. All rights reserved.`}
+                  </span>
+                  <span className="presented-line font-mono">
+                    {p.builtBy || 'Built with Klyvora Studio by Xeorvia'}
+                  </span>
+                </div>
+              </footer>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Page Not Created Yet (404) Custom Screen */}
+      {isNotFound && (
+        <section
+          className="preview-section"
+          style={{
+            minHeight: '60vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '60px 20px',
+          }}
+        >
+          <div className="preview-container" style={{ textAlign: 'center', width: '100%' }}>
+            <div
+              className="preview-glass-card"
+              style={{
+                maxWidth: '620px',
+                margin: '0 auto',
+                padding: '50px 32px',
+                borderRadius: '16px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: 'rgba(12, 14, 21, 0.75)',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+              }}
+            >
+              <div
+                className="font-mono"
+                style={{
+                  color: 'var(--site-primary, #06b6d4)',
+                  fontSize: '12px',
+                  letterSpacing: '0.12em',
+                  marginBottom: '16px',
+                }}
+              >
+                PAGE STATUS · 404
+              </div>
+              <h2
+                style={{
+                  fontFamily: 'var(--site-font-heading, Syne)',
+                  fontSize: '30px',
+                  marginBottom: '14px',
+                  color: 'var(--site-text, #f8fafc)',
+                  fontWeight: 700,
+                }}
+              >
+                Page Not Created Yet
+              </h2>
+              <p
+                style={{
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  lineHeight: 1.6,
+                  marginBottom: '30px',
+                  fontSize: '15px',
+                }}
+              >
+                The page <code style={{ color: '#38bdf8' }}>/{activePageSlug}</code> has not been
+                created or published for {brand.businessName || 'this website'} yet.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigateToPage('home')}
+                className="preview-btn btn-brand"
+                style={{
+                  cursor: 'pointer',
+                  padding: '12px 28px',
+                  fontSize: '14px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                &larr; Return to Home Page
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Empty State / Add Section Prompt at bottom of canvas */}
+      {!isInteractiveMode && !isNotFound && (
+        <div className="canvas-add-section-zone">
+          <button
+            type="button"
+            onClick={onAddSectionClick}
+            className="canvas-add-section-btn font-mono"
+          >
+            <Plus size={16} />
+            <span>ADD NEW SECTION FROM LIBRARY</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

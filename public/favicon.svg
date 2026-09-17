@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="kg1" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="50%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="kg2" x1="16" y1="16" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#C4B5FD" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="kglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Background glow -->
+  <circle cx="32" cy="32" r="28" fill="url(#kglow)" />
+  <!-- Outer shield / hex frame -->
+  <polygon points="32,4 58,19 58,45 32,60 6,45 6,19" fill="#0c0e15" stroke="url(#kg1)" stroke-width="2.5" stroke-linejoin="round"/>
+  <!-- Futuristic Klyvora 'K' Monogram -->
+  <path d="M22 18 V46" stroke="url(#kg2)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M42 20 L27 33 L43 45" stroke="url(#kg1)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Core nexus spark -->
+  <circle cx="32" cy="32" r="3" fill="#FFFFFF"/>
+</svg>
