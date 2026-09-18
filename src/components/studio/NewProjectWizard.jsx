@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import {
   Sparkles,
   ArrowRight,
-  ArrowLeft,
-  Building,
   Coffee,
   ShoppingBag,
   Scissors,
@@ -15,31 +13,110 @@ import {
   User,
   Wand2,
   X,
+  Dices,
+  SlidersHorizontal,
+  Check,
 } from 'lucide-react';
 import BrandLogo from '../BrandLogo';
-import { createProject, createSection } from '../../models/projectSchema';
 import { storageService } from '../../services/storageService';
 import { useAuth } from '../../context/useAuth';
 import { groqService } from '../../services/ai/groqService';
 
+const PRESET_PROMPTS = [
+  {
+    label: 'Artisan Bakery',
+    category: 'Bakery',
+    style: 'warm',
+    prompt:
+      'A warm, neighborhood artisan sourdough bakery and cafe with daily fresh bread drops, pastry viennoiserie, customer reviews, opening hours, and direct WhatsApp ordering.',
+  },
+  {
+    label: 'Omakase Sushi',
+    category: 'Restaurant',
+    style: 'cinematic',
+    prompt:
+      'An intimate Tokyo-style sushi omakase lounge featuring seasonal Toyosu fish flights, sommelier sake pairings, chef counter booking, and Michelin-inspired storytelling.',
+  },
+  {
+    label: 'Cloud AI SaaS',
+    category: 'SaaS Startup',
+    style: 'cinematic',
+    prompt:
+      'A high-performance autonomous edge telemetry and AI workflow platform for software engineers with live pricing tiers, API benchmarks, and documentation.',
+  },
+  {
+    label: 'Athletic Sanctuary',
+    category: 'Gym & Fitness',
+    style: 'cyber',
+    prompt:
+      'A modern athletic performance club with small-group conditioning, contrast therapy cold plunge bays, infrared saunas, and trial membership passes.',
+  },
+  {
+    label: 'Design Agency',
+    category: 'Creative Agency',
+    style: 'minimal',
+    prompt:
+      'An avant-garde brand identity and digital product design studio showcasing signature client case studies, design philosophy, and inquiry contact form.',
+  },
+  {
+    label: 'Luxury Portfolio',
+    category: 'Portfolio',
+    style: 'cinematic',
+    prompt:
+      'A cinematic architectural photographer portfolio with full-bleed project galleries, published press credentials, client testimonials, and commission inquiries.',
+  },
+];
+
+const CATEGORIES = [
+  { id: 'Bakery', label: 'Bakery & Cafe', icon: <Coffee size={17} /> },
+  { id: 'Restaurant', label: 'Fine Dining', icon: <Coffee size={17} /> },
+  { id: 'SaaS Startup', label: 'Tech & SaaS', icon: <Laptop size={17} /> },
+  { id: 'Creative Agency', label: 'Agency & Studio', icon: <Briefcase size={17} /> },
+  { id: 'Gym & Fitness', label: 'Fitness & Health', icon: <Dumbbell size={17} /> },
+  { id: 'Portfolio', label: 'Portfolio', icon: <Layers size={17} /> },
+  { id: 'Online Store', label: 'E-commerce', icon: <Store size={17} /> },
+  { id: 'Salon & Spa', label: 'Salon & Spa', icon: <Scissors size={17} /> },
+  { id: 'Clothing Shop', label: 'Fashion Boutique', icon: <ShoppingBag size={17} /> },
+  { id: 'Personal Brand', label: 'Personal Brand', icon: <User size={17} /> },
+];
+
+const STYLES = [
+  {
+    id: 'cinematic',
+    name: 'Cinematic Obsidian',
+    desc: 'Deep blacks, neon cyan glow & ultraviolet accents',
+    gradient: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
+  },
+  {
+    id: 'warm',
+    name: 'Artisan Warmth',
+    desc: 'Golden hearth amber, espresso & toasted terracotta',
+    gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
+  },
+  {
+    id: 'minimal',
+    name: 'Pure Minimalist',
+    desc: 'Stark platinum, airy whitespace & architectural slate',
+    gradient: 'linear-gradient(135deg, #e2e8f0, #38bdf8)',
+  },
+  {
+    id: 'cyber',
+    name: 'Cyber Emerald',
+    desc: 'Obsidian carbon, electric emerald & mint highlights',
+    gradient: 'linear-gradient(135deg, #10b981, #06b6d4)',
+  },
+];
+
 export default function NewProjectWizard({ onProjectCreated, onCancel }) {
   const { currentUser } = useAuth();
-  const [step, setStep] = useState(1);
-  const [fastPrompt, setFastPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationStage, setGenerationStage] = useState('');
+  const [prompt, setPrompt] = useState(
+    'A warm, neighborhood artisan sourdough bakery and cafe with daily fresh bread drops, pastry viennoiserie, customer reviews, opening hours, and direct WhatsApp ordering.'
+  );
+  const [selectedCategory, setSelectedCategory] = useState('Bakery');
+  const [selectedStyle, setSelectedStyle] = useState('warm');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: 'Aura Artisan Bakery',
-    category: 'Bakery',
-    description: 'Artisan sourdough bakery serving naturally leavened bread and pastries in San Francisco.',
-    location: 'San Francisco, CA',
-    audience: 'Local food lovers and morning commuters',
-    style: 'cinematic', // 'cinematic', 'minimal', 'warm', 'vibrant'
-    phone: '+1 (555) 234-8901',
-    email: 'hello@aurabakery.com',
-    whatsapp: '+15552348901',
-    hours: 'Tue–Sun: 7 AM – 2 PM',
+  const [modules, setModules] = useState({
     enableWhatsApp: true,
     enableMenu: true,
     enableReviews: true,
@@ -47,202 +124,89 @@ export default function NewProjectWizard({ onProjectCreated, onCancel }) {
     enableFAQ: true,
   });
 
-  const categories = [
-    { id: 'Bakery', label: 'Bakery', icon: <Coffee size={20} /> },
-    { id: 'Restaurant', label: 'Restaurant', icon: <Coffee size={20} /> },
-    { id: 'Clothing Shop', label: 'Clothing Shop', icon: <ShoppingBag size={20} /> },
-    { id: 'Salon & Spa', label: 'Salon & Spa', icon: <Scissors size={20} /> },
-    { id: 'Gym & Fitness', label: 'Gym & Fitness', icon: <Dumbbell size={20} /> },
-    { id: 'Freelancer', label: 'Freelancer', icon: <User size={20} /> },
-    { id: 'Creative Agency', label: 'Agency', icon: <Briefcase size={20} /> },
-    { id: 'Portfolio', label: 'Portfolio', icon: <Layers size={20} /> },
-    { id: 'SaaS Startup', label: 'SaaS Startup', icon: <Laptop size={20} /> },
-    { id: 'Local Service', label: 'Local Service', icon: <Building size={20} /> },
-    { id: 'Online Store', label: 'Online Store', icon: <Store size={20} /> },
-    { id: 'Personal Brand', label: 'Personal Brand', icon: <Sparkles size={20} /> },
-  ];
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStage, setGenerationStage] = useState('');
 
-  const handleApplyFastPrompt = (promptText) => {
-    setFastPrompt(promptText);
-    const p = promptText.toLowerCase();
+  const handleSelectPreset = (preset) => {
+    setPrompt(preset.prompt);
+    setSelectedCategory(preset.category);
+    setSelectedStyle(preset.style);
+  };
 
-    if (p.includes('bakery') || p.includes('bread')) {
-      setFormData({
-        name: 'Aura Artisan Bakery',
-        category: 'Bakery',
-        description: 'Naturally leavened sourdough bread, flaky croissants, and daily pastries with local grains.',
-        location: 'San Francisco, CA',
-        audience: 'Local community and sourdough enthusiasts',
-        style: 'warm',
-        phone: '+1 (555) 234-8901',
-        email: 'hello@aurabakery.com',
-        whatsapp: '+15552348901',
-        hours: 'Tue–Sun: 7:00 AM – 2:00 PM',
-        enableWhatsApp: true,
-        enableMenu: true,
-        enableReviews: true,
-        enablePricing: true,
-        enableFAQ: true,
-      });
-    } else if (p.includes('restaurant') || p.includes('bistro')) {
-      setFormData({
-        name: 'L’Onyx Bistro',
-        category: 'Restaurant',
-        description: 'Modern French dining with farm-to-table seasonal tasting menus and curated natural wines.',
-        location: 'Downtown Seattle, WA',
-        audience: 'Fine dining guests and celebration diners',
-        style: 'cinematic',
-        phone: '+1 (555) 890-1234',
-        email: 'reservations@lonyxbistro.com',
-        whatsapp: '+15558901234',
-        hours: 'Wed–Sun: 5:00 PM – 10:30 PM',
-        enableWhatsApp: true,
-        enableMenu: true,
-        enableReviews: true,
-        enablePricing: false,
-        enableFAQ: true,
-      });
-    } else if (p.includes('saas') || p.includes('tech')) {
-      setFormData({
-        name: 'Veloce Data Engine',
-        category: 'SaaS Startup',
-        description: 'Real-time edge event streaming and distributed telemetry platform for cloud engineers.',
-        location: 'Global / Remote First',
-        audience: 'DevOps architects and software engineering leaders',
-        style: 'cinematic',
-        phone: '',
-        email: 'team@veloce.dev',
-        whatsapp: '',
-        hours: '24/7 Availability',
-        enableWhatsApp: false,
-        enableMenu: false,
-        enableReviews: true,
-        enablePricing: true,
-        enableFAQ: true,
-      });
+  const handleRandomPreset = () => {
+    const random = PRESET_PROMPTS[Math.floor(Math.random() * PRESET_PROMPTS.length)];
+    handleSelectPreset(random);
+  };
+
+  const handleSelectCategory = (catId) => {
+    setSelectedCategory(catId);
+    // If prompt is empty or default, suggest tailored prompt for this category
+    const matchingPreset = PRESET_PROMPTS.find((p) => p.category === catId);
+    if (matchingPreset && (!prompt || prompt.trim().length < 20)) {
+      setPrompt(matchingPreset.prompt);
+      setSelectedStyle(matchingPreset.style);
     }
   };
 
   const executeGeneration = async () => {
+    const rawPrompt = (prompt || '').trim();
+    const finalPrompt =
+      rawPrompt ||
+      `A premier, modern website for a ${selectedCategory} with responsive layout, engaging storytelling, customer reviews, and direct contact.`;
+
     setIsGenerating(true);
 
-    if (fastPrompt && fastPrompt.trim()) {
-      setGenerationStage('Generating complete architecture via System Architect 1.2 Neo...');
-      try {
-        const proj = await groqService.generateWebsiteFromPrompt(fastPrompt.trim(), currentUser?.uid);
-        setTimeout(() => {
-          setIsGenerating(false);
-          onProjectCreated(proj.id);
-        }, 500);
-        return;
-      } catch (err) {
-        console.warn('Groq wizard generation fallback:', err);
-      }
-    }
-
     const stages = [
-      'Analyzing business category & target demographic...',
-      'Synthesizing responsive section topology...',
-      'Configuring chromatic palette & typography pairs...',
-      'Assembling interactive forms & WhatsApp routing...',
-      'Initializing Klyvora Studio visual workspace...',
+      'Analyzing business concept & brand identity from your prompt...',
+      'Synthesizing bespoke copywriting, taglines & hero headlines...',
+      'Configuring chromatic palette & harmonious typography...',
+      'Architecting responsive sections (Hero, Showcase, Pricing, FAQ, Contact)...',
+      'Assembling interactive components & WhatsApp routing...',
+      'Launching Klyvora Studio visual workspace...',
     ];
 
-    let current = 0;
+    let currentStage = 0;
     setGenerationStage(stages[0]);
 
-    const interval = setInterval(() => {
-      current++;
-      if (current < stages.length) {
-        setGenerationStage(stages[current]);
-      } else {
-        clearInterval(interval);
-
-        // Build customized project
-        const sections = [
-          createSection('navigation', {
-            logoText: formData.name,
-            ctaText: formData.enableWhatsApp ? 'WhatsApp Order' : 'Contact Us',
-            ctaUrl: '#contact',
-          }),
-          createSection('hero', {
-            heading: `${formData.name} — Handcrafted with Purpose.`,
-            subheading: formData.description,
-            primaryBtnText: formData.enableMenu ? 'Explore Menu' : 'Learn More',
-            primaryBtnUrl: formData.enableMenu ? '#products' : '#about',
-            secondaryBtnText: formData.enableWhatsApp ? 'WhatsApp Inquiry' : 'Get in Touch',
-            secondaryBtnUrl: '#contact',
-          }),
-          createSection('about', {
-            heading: `The ${formData.name} Perspective`,
-            paragraph1: formData.description,
-          }),
-        ];
-
-        if (formData.enableMenu) {
-          sections.push(createSection('products'));
-        }
-
-        sections.push(createSection('features'));
-
-        if (formData.enableReviews) {
-          sections.push(createSection('testimonials'));
-        }
-
-        if (formData.enablePricing) {
-          sections.push(createSection('pricing'));
-        }
-
-        if (formData.enableFAQ) {
-          sections.push(createSection('faq'));
-        }
-
-        sections.push(
-          createSection('contact', {
-            subheading: `Located in ${formData.location}. We welcome your message or order.`,
-          })
-        );
-
-        sections.push(
-          createSection('footer', {
-            businessName: formData.name,
-            tagline: formData.description.slice(0, 70),
-          })
-        );
-
-        const projectTheme =
-          formData.style === 'warm'
-            ? { primaryColor: '#f59e0b', secondaryColor: '#d97706', bgColor: '#080706' }
-            : formData.style === 'minimal'
-            ? { primaryColor: '#e2e8f0', secondaryColor: '#38bdf8', bgColor: '#090a0f' }
-            : { primaryColor: '#8b5cf6', secondaryColor: '#06b6d4', bgColor: '#07080c' };
-
-        const newProj = createProject({
-          name: formData.name,
-          category: formData.category,
-          description: formData.description,
-          theme: projectTheme,
-          sections,
-          brand: {
-            businessName: formData.name,
-            category: formData.category,
-            description: formData.description,
-            location: formData.location,
-            contact: {
-              email: formData.email,
-              phone: formData.phone,
-              whatsapp: formData.whatsapp,
-              address: formData.location,
-              openingHours: formData.hours,
-            },
-          },
-        });
-
-        storageService.saveProject(newProj, currentUser?.uid);
-        setIsGenerating(false);
-        onProjectCreated(newProj.id);
+    const stageInterval = setInterval(() => {
+      currentStage++;
+      if (currentStage < stages.length) {
+        setGenerationStage(stages[currentStage]);
       }
-    }, 450);
+    }, 550);
+
+    const enrichedPrompt = `${finalPrompt}. Category: ${selectedCategory}. Aesthetic Style: ${selectedStyle}. Modules: ${[
+      modules.enableWhatsApp ? 'WhatsApp Ordering/Inquiry' : null,
+      modules.enableMenu ? 'Showcase / Catalog' : null,
+      modules.enableReviews ? 'Customer Reviews' : null,
+      modules.enablePricing ? 'Pricing & Plans' : null,
+      modules.enableFAQ ? 'FAQ Section' : null,
+    ]
+      .filter(Boolean)
+      .join(', ')}.`;
+
+    try {
+      const proj = await groqService.generateWebsiteFromPrompt(enrichedPrompt, currentUser?.uid);
+      clearInterval(stageInterval);
+      setGenerationStage('Launching interactive workspace...');
+      setTimeout(() => {
+        setIsGenerating(false);
+        onProjectCreated(proj.id);
+      }, 350);
+    } catch (err) {
+      clearInterval(stageInterval);
+      console.warn('[Klyvora Wizard] Remote generation fallback to local synthesis:', err);
+      try {
+        const fallbackData = groqService.synthesizeFallbackProjectData(finalPrompt);
+        const fallbackProj = groqService.constructProjectFromData(fallbackData, finalPrompt, currentUser?.uid);
+        setIsGenerating(false);
+        onProjectCreated(fallbackProj.id);
+      } catch (fErr) {
+        console.error('[Klyvora Wizard] Fallback project construction failed:', fErr);
+        setIsGenerating(false);
+        alert('Could not generate website. Please try again with a descriptive prompt.');
+      }
+    }
   };
 
   return (
@@ -255,7 +219,7 @@ export default function NewProjectWizard({ onProjectCreated, onCancel }) {
             <div className="wizard-title-col">
               <span className="wizard-title font-display">Create New Digital Experience</span>
               <span className="wizard-subtitle font-mono">
-                POWERED BY XEORVIA SYSTEM ARCHITECT
+                POWERED BY SYSTEM ARCHITECT // NATURAL LANGUAGE GENERATION
               </span>
             </div>
           </div>
@@ -270,104 +234,85 @@ export default function NewProjectWizard({ onProjectCreated, onCancel }) {
           </button>
         </div>
 
-        {/* Progress Bar */}
-        <div className="wizard-progress-track">
-          <div
-            className="wizard-progress-bar"
-            style={{ width: `${(step / 3) * 100}%` }}
-          />
-        </div>
-
         {/* GENERATING SCREEN */}
         {isGenerating ? (
           <div className="wizard-generating-screen">
             <div className="generating-visual">
               <div className="generating-pulse-ring" />
-              <Wand2 size={36} className="text-cyan generating-wand-icon" />
+              <Wand2 size={38} className="text-cyan generating-wand-icon" />
             </div>
             <h3 className="generating-title font-display">Architecting Digital Experience</h3>
             <p className="generating-stage-text font-mono">{generationStage}</p>
           </div>
         ) : (
           <div className="wizard-body-content">
-            {/* STEP 1: Fast Prompt & Category Preset */}
-            {step === 1 && (
-              <div className="wizard-step-panel">
-                {/* Fast Prompt Bar */}
-                <div className="wizard-fast-prompt-box glass-card">
-                  <div className="fast-prompt-header font-mono">
+            <div className="wizard-step-panel">
+              {/* Natural Language Prompt Area */}
+              <div className="wizard-prompt-hero glass-card">
+                <div className="prompt-hero-top font-mono">
+                  <div className="prompt-hero-badge">
                     <Sparkles size={14} className="text-cyan" />
-                    <span>NATURAL LANGUAGE PROMPT GENERATOR</span>
+                    <span>DESCRIBE YOUR WEBSITE IN PLAIN ENGLISH</span>
                   </div>
-                  <div className="fast-prompt-input-row">
-                    <input
-                      type="text"
-                      value={fastPrompt}
-                      onChange={(e) => setFastPrompt(e.target.value)}
-                      placeholder="e.g. Create a modern website for a local bakery with WhatsApp orders, reviews, and hours..."
-                      className="fast-prompt-input"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleApplyFastPrompt(fastPrompt)}
-                      className="btn btn-primary fast-prompt-btn font-mono"
-                    >
-                      <span>Analyze</span>
-                      <ArrowRight size={14} />
-                    </button>
-                  </div>
-                  <div className="preset-quick-chips">
-                    <span className="font-mono text-muted" style={{ fontSize: '11px' }}>
-                      PRESETS:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleApplyFastPrompt(
-                          'Create a modern website for a local artisan sourdough bakery with daily menu, WhatsApp orders, customer reviews, location, and opening hours.'
-                        )
-                      }
-                      className="preset-chip font-mono"
-                    >
-                      Artisan Bakery
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleApplyFastPrompt(
-                          'Create a high-performance website for a real-time cloud telemetry SaaS startup with pricing, features, and developer docs.'
-                        )
-                      }
-                      className="preset-chip font-mono"
-                    >
-                      Cloud SaaS
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleApplyFastPrompt(
-                          'Create an elegant fine dining restaurant website with seasonal menu, reservation booking, and wine list.'
-                        )
-                      }
-                      className="preset-chip font-mono"
-                    >
-                      Bistro Restaurant
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRandomPreset}
+                    className="btn-random-idea font-mono"
+                    title="Load a random inspiration prompt"
+                  >
+                    <Dices size={14} />
+                    <span>Inspire Me</span>
+                  </button>
                 </div>
 
-                {/* Category Grid */}
-                <span className="wizard-section-heading font-mono">
-                  SELECT BUSINESS CATEGORY
-                </span>
+                <div className="prompt-textarea-wrapper">
+                  <textarea
+                    rows={4}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                        executeGeneration();
+                      }
+                    }}
+                    placeholder="Describe the business or website you want to build in detail (e.g. A boutique Japanese sushi omakase lounge in Tokyo with seasonal multi-course menu, sake pairings, counter reservation booking, and a dark minimalist aesthetic)..."
+                    className="prompt-hero-textarea"
+                  />
+                </div>
+
+                {/* Inspiration Chips */}
+                <div className="preset-quick-chips">
+                  <span className="font-mono text-muted" style={{ fontSize: '11px', letterSpacing: '0.08em' }}>
+                    INSPIRATION PRESETS:
+                  </span>
+                  {PRESET_PROMPTS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => handleSelectPreset(preset)}
+                      className={`preset-chip font-mono ${
+                        prompt === preset.prompt ? 'active-chip' : ''
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category Selector */}
+              <div className="wizard-section-block">
+                <div className="section-block-header font-mono">
+                  <span>BUSINESS CATEGORY INSPIRATION</span>
+                </div>
                 <div className="wizard-categories-grid">
-                  {categories.map((cat) => (
+                  {CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}
                       type="button"
-                      onClick={() => setFormData({ ...formData, category: cat.id })}
+                      onClick={() => handleSelectCategory(cat.id)}
                       className={`wizard-category-card glass-card ${
-                        formData.category === cat.id ? 'active' : ''
+                        selectedCategory === cat.id ? 'active' : ''
                       }`}
                     >
                       <div className="cat-icon-wrap">{cat.icon}</div>
@@ -376,214 +321,134 @@ export default function NewProjectWizard({ onProjectCreated, onCancel }) {
                   ))}
                 </div>
               </div>
-            )}
 
-            {/* STEP 2: Business Profile */}
-            {step === 2 && (
-              <div className="wizard-step-panel">
-                <span className="wizard-section-heading font-mono">
-                  STEP 2 // BUSINESS IDENTITY & DETAILS
-                </span>
-
-                <div className="wizard-form-grid">
-                  <div className="form-group">
-                    <label className="form-label font-mono">BUSINESS / BRAND NAME *</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="form-input"
-                      placeholder="e.g. Aura Artisan Bakery"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label font-mono">LOCATION / SERVICE AREA</label>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className="form-input"
-                      placeholder="e.g. 124 Heritage Lane, San Francisco, CA"
-                    />
-                  </div>
-
-                  <div className="form-group form-col-full">
-                    <label className="form-label font-mono">BUSINESS DESCRIPTION & PURPOSE</label>
-                    <textarea
-                      rows="3"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="form-input"
-                      placeholder="What makes your business unique? What do you offer?"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label font-mono">EMAIL ADDRESS</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="form-input"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label font-mono">WHATSAPP / PHONE NUMBER</label>
-                    <input
-                      type="text"
-                      value={formData.whatsapp || formData.phone}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          whatsapp: e.target.value,
-                          phone: e.target.value,
-                        })
-                      }
-                      className="form-input"
-                      placeholder="+1 (555) 000-0000"
-                    />
-                  </div>
-
-                  <div className="form-group form-col-full">
-                    <label className="form-label font-mono">OPENING HOURS / CADENCE</label>
-                    <input
-                      type="text"
-                      value={formData.hours}
-                      onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
-                      className="form-input"
-                      placeholder="e.g. Tue–Sun: 7:00 AM – 2:00 PM"
-                    />
-                  </div>
+              {/* Design Personality & Style */}
+              <div className="wizard-section-block">
+                <div className="section-block-header font-mono">
+                  <span>AESTHETIC VIBE & PALETTE</span>
+                </div>
+                <div className="style-cards-row">
+                  {STYLES.map((st) => (
+                    <div
+                      key={st.id}
+                      onClick={() => setSelectedStyle(st.id)}
+                      className={`style-card glass-card ${
+                        selectedStyle === st.id ? 'active' : ''
+                      }`}
+                    >
+                      <div className="style-card-header">
+                        <strong className="style-name font-display">{st.name}</strong>
+                        {selectedStyle === st.id && (
+                          <span className="style-check-badge">
+                            <Check size={12} />
+                          </span>
+                        )}
+                      </div>
+                      <p className="style-desc">{st.desc}</p>
+                      <div
+                        className="style-indicator-bar"
+                        style={{ background: st.gradient }}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* STEP 3: Features & Aesthetic Style */}
-            {step === 3 && (
-              <div className="wizard-step-panel">
-                <span className="wizard-section-heading font-mono">
-                  STEP 3 // AESTHETIC PALETTE & REQUIRED SECTIONS
-                </span>
+              {/* Advanced Modules Accordion Toggle */}
+              <div className="wizard-advanced-toggle-area">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="btn-toggle-advanced font-mono"
+                >
+                  <SlidersHorizontal size={14} />
+                  <span>
+                    {showAdvanced
+                      ? 'Hide Functional Modules Configuration'
+                      : 'Customize Included Modules & Features (Optional)'}
+                  </span>
+                </button>
 
-                {/* Style Selector */}
-                <div className="wizard-style-selector">
-                  <label className="form-label font-mono">DESIGN PERSONALITY</label>
-                  <div className="style-cards-row">
-                    {[
-                      { id: 'cinematic', name: 'Cinematic Obsidian', desc: 'Nebula violet, cyan glow, deep blacks' },
-                      { id: 'warm', name: 'Artisan Warmth', desc: 'Golden hearth amber, toasted bronze, dark espresso' },
-                      { id: 'minimal', name: 'Pure Minimalist', desc: 'Crisp platinum, clean white, slate accents' },
-                    ].map((st) => (
-                      <div
-                        key={st.id}
-                        onClick={() => setFormData({ ...formData, style: st.id })}
-                        className={`style-card glass-card ${formData.style === st.id ? 'active' : ''}`}
-                      >
-                        <strong className="style-name font-display">{st.name}</strong>
-                        <p className="style-desc">{st.desc}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Toggle features */}
-                <div className="wizard-features-toggles">
-                  <label className="form-label font-mono" style={{ marginTop: '20px' }}>
-                    KEY FUNCTIONALITY MODULES
-                  </label>
-                  <div className="features-checkbox-grid">
+                {showAdvanced && (
+                  <div className="features-checkbox-grid advanced-modules-box glass-card">
                     <label className="checkbox-item glass-card">
                       <input
                         type="checkbox"
-                        checked={formData.enableWhatsApp}
+                        checked={modules.enableWhatsApp}
                         onChange={(e) =>
-                          setFormData({ ...formData, enableWhatsApp: e.target.checked })
+                          setModules({ ...modules, enableWhatsApp: e.target.checked })
                         }
                       />
-                      <span>WhatsApp Direct Ordering</span>
+                      <span>WhatsApp Direct Ordering & Contact</span>
                     </label>
 
                     <label className="checkbox-item glass-card">
                       <input
                         type="checkbox"
-                        checked={formData.enableMenu}
-                        onChange={(e) => setFormData({ ...formData, enableMenu: e.target.checked })}
-                      />
-                      <span>Menu / Offerings Catalog</span>
-                    </label>
-
-                    <label className="checkbox-item glass-card">
-                      <input
-                        type="checkbox"
-                        checked={formData.enableReviews}
+                        checked={modules.enableMenu}
                         onChange={(e) =>
-                          setFormData({ ...formData, enableReviews: e.target.checked })
+                          setModules({ ...modules, enableMenu: e.target.checked })
                         }
                       />
-                      <span>Customer Reviews / Testimonials</span>
+                      <span>Menu / Offerings Showcase Catalog</span>
                     </label>
 
                     <label className="checkbox-item glass-card">
                       <input
                         type="checkbox"
-                        checked={formData.enablePricing}
+                        checked={modules.enableReviews}
                         onChange={(e) =>
-                          setFormData({ ...formData, enablePricing: e.target.checked })
+                          setModules({ ...modules, enableReviews: e.target.checked })
                         }
                       />
-                      <span>Pricing & Plans Table</span>
+                      <span>Customer Reviews & Testimonials</span>
                     </label>
 
                     <label className="checkbox-item glass-card">
                       <input
                         type="checkbox"
-                        checked={formData.enableFAQ}
-                        onChange={(e) => setFormData({ ...formData, enableFAQ: e.target.checked })}
+                        checked={modules.enablePricing}
+                        onChange={(e) =>
+                          setModules({ ...modules, enablePricing: e.target.checked })
+                        }
+                      />
+                      <span>Pricing & Plans Comparison</span>
+                    </label>
+
+                    <label className="checkbox-item glass-card">
+                      <input
+                        type="checkbox"
+                        checked={modules.enableFAQ}
+                        onChange={(e) =>
+                          setModules({ ...modules, enableFAQ: e.target.checked })
+                        }
                       />
                       <span>Interactive FAQ Accordion</span>
                     </label>
                   </div>
-                </div>
+                )}
               </div>
-            )}
 
-            {/* Footer Navigation Buttons */}
-            <div className="wizard-footer-actions">
-              {step > 1 && (
+              {/* Action Footer */}
+              <div className="wizard-footer-actions">
                 <button
                   type="button"
-                  onClick={() => setStep(step - 1)}
+                  onClick={onCancel}
                   className="btn btn-secondary font-mono"
                 >
-                  <ArrowLeft size={16} />
-                  <span>Back</span>
+                  <span>Cancel</span>
                 </button>
-              )}
 
-              {step < 3 ? (
-                <button
-                  type="button"
-                  onClick={() => setStep(step + 1)}
-                  className="btn btn-primary font-mono"
-                  style={{ marginLeft: 'auto' }}
-                >
-                  <span>Continue</span>
-                  <ArrowRight size={16} />
-                </button>
-              ) : (
                 <button
                   type="button"
                   onClick={executeGeneration}
                   className="btn btn-primary font-mono wizard-generate-btn"
-                  style={{ marginLeft: 'auto' }}
                 >
                   <Sparkles size={16} />
-                  <span>Generate Website with AI</span>
+                  <span>Generate Full Website with AI</span>
+                  <ArrowRight size={16} />
                 </button>
-              )}
+              </div>
             </div>
           </div>
         )}
