@@ -282,16 +282,16 @@ export default function DashboardView({
         <section className="dashboard-ai-generator-card glass-card glass-card-elevated" aria-label="AI Website Generator">
           <div className="ai-gen-top-badge font-mono">
             <div className="ai-gen-pulse" aria-hidden="true" />
-            <Zap size={13} className="text-cyan fill-cyan" />
-            <span>POWERED BY SYSTEM ARCHITECT 1.2 NEO</span>
+            <Sparkles size={13} className="text-cyan fill-cyan" />
+            <span>🇮🇳 INDIA'S AI WEBSITE CREATOR</span>
           </div>
 
           <div className="ai-gen-header">
             <h2 className="ai-gen-title font-display">
-              Describe your website. Watch AI build it instantly.
+              Describe your business. Watch AI build it instantly.
             </h2>
             <p className="ai-gen-subtitle">
-              Enter any prompt or business vision below. Klyvora will synthesize responsive sections, custom copywriting, color palettes, and interactive components.
+              Enter your shop, coaching institute, clinic, or startup idea. Klyvora creates mobile-ready sections, ₹ pricing, and WhatsApp ordering in seconds.
             </p>
           </div>
 
@@ -308,7 +308,7 @@ export default function DashboardView({
                 type="text"
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="e.g. A luxury Japanese sushi lounge in Ginza, Tokyo with dark aesthetic, seasonal tasting menu, online reservations, and reviews"
+                placeholder="e.g. A traditional saree & lehenga boutique in Jaipur with festival discounts, WhatsApp order, and ₹ pricing"
                 disabled={isGenerating}
                 className="ai-gen-input"
               />
@@ -320,7 +320,7 @@ export default function DashboardView({
                 {isGenerating ? (
                   <>
                     <span className="thinking-spinner" aria-hidden="true" />
-                    <span>Architecting...</span>
+                    <span>Creating Website...</span>
                   </>
                 ) : (
                   <>
@@ -337,11 +337,11 @@ export default function DashboardView({
             <span className="ai-gen-pills-label">TRY AN IDEA:</span>
             <div className="ai-gen-pills-scroll">
               {[
-                { label: '🍣 Luxury Sushi & Omakase Lounge in Ginza', prompt: 'A luxury Japanese omakase sushi lounge in Ginza, Tokyo with dark aesthetic, seasonal tasting menu, online reservations, and customer reviews' },
-                { label: '⚡ Autonomous AI Developer Platform SaaS', prompt: 'Modern AI SaaS landing page for an autonomous code reviewer with pricing tiers, live demo terminal, testimonials, and dark violet theme' },
-                { label: '☕ Artisan Sourdough Bakery & Coffee Shop', prompt: 'An artisan sourdough bakery and specialty coffee roaster in San Francisco with daily bake menu, story, and WhatsApp ordering' },
-                { label: '🌿 Minimalist Yoga & Wellness Sanctuary', prompt: 'Minimalist boutique yoga and holistic wellness studio with class schedules, private retreat bookings, and tranquil serene theme' },
-                { label: '💼 High-End Digital Product Design Agency', prompt: 'A prestigious boutique design agency portfolio showcasing brand systems, interactive case studies, and client endorsements' },
+                { label: '🛍️ Saree & Ethnic Boutique (Jaipur)', prompt: 'A luxury ethnic saree and lehenga boutique in Jaipur with bridal collections, festive discount offers, customer reviews, ₹ pricing, and direct WhatsApp ordering' },
+                { label: '📚 IIT-JEE & NEET Academy (Kota)', prompt: 'A premier IIT-JEE and NEET coaching institute in Kota with classroom batch schedules, scholarship tests, fee structure in ₹, and WhatsApp admission helpline' },
+                { label: '☕ Artisan Chai & Mithai Cafe (Delhi)', prompt: 'An artisan chai and gourmet mithai cafe in Delhi with signature sweets, street snack menu, ₹ pricing, and WhatsApp orders' },
+                { label: '🚀 B2B AI Tech Startup (Bengaluru)', prompt: 'A modern Indian B2B AI SaaS startup landing page with cloud features, transparent pricing tiers in ₹ (INR), client testimonials, and book demo CTA' },
+                { label: '🏥 Dental & Wellness Clinic (Mumbai)', prompt: 'A modern multispeciality dental and wellness clinic in Mumbai with doctor profiles, treatment pricing in ₹, patient reviews, and WhatsApp appointment booking' },
               ].map((pill, i) => (
                 <button
                   key={i}
@@ -368,7 +368,7 @@ export default function DashboardView({
                   <Sparkles size={24} className="ai-gen-sparkle-center text-cyan" />
                 </div>
                 <div className="ai-gen-progress-text">
-                  <span className="ai-gen-progress-title font-display">Constructing Website With System Architect 1.2 Neo</span>
+                  <span className="ai-gen-progress-title font-display">Generating Website with Klyvora AI...</span>
                   <span className="ai-gen-progress-step">{generationStep}</span>
                 </div>
               </div>

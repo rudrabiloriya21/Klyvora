@@ -4,12 +4,12 @@ import { groqService } from '../../services/ai/groqService';
 import { getModelById } from '../../services/ai/modelRegistry';
 
 const SUGGESTIONS = [
-  { label: 'Theme Colors', prompt: 'Change website colors to a warm golden bakery theme with dark espresso background' },
-  { label: 'Rewrite Hero', prompt: 'Make the hero headline punchier, bolder, and more inviting' },
-  { label: 'Add Reviews', prompt: 'Add a customer testimonials section with 5-star reviews and customer quotes' },
-  { label: 'WhatsApp Order', prompt: 'Add a WhatsApp direct order button to the navigation and contact section' },
-  { label: 'Pricing Table', prompt: 'Add a clean pricing table with Starter, Popular, and Deluxe tiers' },
-  { label: 'Add FAQ', prompt: 'Add an FAQ section with 3 helpful questions and clear answers' },
+  { label: '₹ Rupee Pricing', prompt: 'Format all pricing, fee structures, and products in Indian Rupees (₹) with realistic prices' },
+  { label: '💬 WhatsApp CTA', prompt: 'Add a direct 1-tap WhatsApp order or admission enquiry button with +91 phone number' },
+  { label: '📍 Store Address & Maps', prompt: 'Add our local shop address, landmark, operating hours, and Google Maps direction info' },
+  { label: '⭐ Indian Patron Reviews', prompt: 'Add 5-star customer testimonials from verified Indian patrons, students, and clients' },
+  { label: '🏷️ Festive Offer Banner', prompt: 'Add a top announcement bar with a 20% festival discount and coupon code' },
+  { label: '🎨 Royal Saffron Theme', prompt: 'Update color palette with vibrant Indian saffron gold and deep obsidian elegance' },
 ];
 
 export default function FloatingAICopilot({

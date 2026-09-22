@@ -73,15 +73,15 @@ export default function LiveWebsiteRenderer({
         type: 'hero',
         name: 'About Page Banner',
         props: {
-          badge: 'OUR STORY & PHILOSOPHY',
-          heading: `The ${brand.businessName || 'Luma & Bean'} Philosophy`,
+          badge: 'OUR STORY & HERITAGE',
+          heading: `About ${brand.businessName || 'Our Business'}`,
           subheading:
             brand.description ||
-            'Dedicated to natural fermentation, organic ingredients, and authentic culinary craftsmanship.',
+            'Dedicated to authentic quality, honest service, and genuine customer relationships.',
           alignment: 'center',
-          primaryBtnText: 'Explore Menu',
-          primaryBtnUrl: '#menu',
-          secondaryBtnText: 'Visit Our Space',
+          primaryBtnText: 'Explore Offerings',
+          primaryBtnUrl: '#products',
+          secondaryBtnText: 'Visit Our Location',
           secondaryBtnUrl: '#contact',
         },
       };
@@ -103,14 +103,14 @@ export default function LiveWebsiteRenderer({
         type: 'hero',
         name: 'Menu Page Banner',
         props: {
-          badge: 'HANDCRAFTED PROVISIONS',
-          heading: `Daily Menu & Offerings`,
+          badge: 'CURATED OFFERINGS',
+          heading: `Catalog & Offerings`,
           subheading:
-            'Prepared fresh every morning at dawn. Available at the counter or for pre-order via WhatsApp.',
+            'Handpicked and prepared with care. Available for instant purchase or pre-order via WhatsApp.',
           alignment: 'center',
           primaryBtnText: 'Order via WhatsApp',
           primaryBtnUrl: '#whatsapp',
-          secondaryBtnText: 'Visit Luma & Bean',
+          secondaryBtnText: 'Visit Store',
           secondaryBtnUrl: '#contact',
         },
       };
@@ -132,10 +132,10 @@ export default function LiveWebsiteRenderer({
         name: 'Contact Page Banner',
         props: {
           badge: 'VISIT & CONNECT',
-          heading: `Connect with ${brand.businessName || 'Luma & Bean'}`,
+          heading: `Connect with ${brand.businessName || 'Us'}`,
           subheading: `Located at ${
-            brand.location || brand.contact?.address || 'our flagship cafe'
-          }. Reach out directly or visit our counter.`,
+            brand.location || brand.contact?.address || 'our location'
+          }. Reach out directly via WhatsApp or visit in person.`,
           alignment: 'center',
           primaryBtnText: 'Chat on WhatsApp',
           primaryBtnUrl: '#whatsapp',
@@ -216,10 +216,10 @@ export default function LiveWebsiteRenderer({
       const rawDigits = (
         brand.contact?.whatsapp ||
         brand.contact?.phone ||
-        '15552348901'
+        '919820012345'
       ).replace(/[^0-9]/g, '');
       const waUrl = `https://wa.me/${rawDigits}?text=${encodeURIComponent(
-        `Hello ${brand.businessName || 'Luma & Bean'}! I would like to place an order.`
+        `Hello ${brand.businessName || 'Team'}! I would like to place an order / make an enquiry.`
       )}`;
       window.open(waUrl, '_blank', 'noopener,noreferrer');
       return;
@@ -229,7 +229,7 @@ export default function LiveWebsiteRenderer({
     if (normUrl.startsWith('tel:') || actionType === 'tel' || normLabel.includes('call')) {
       const tel = normUrl.startsWith('tel:')
         ? normUrl
-        : `tel:${brand.contact?.phone || '+15552348901'}`;
+        : `tel:${brand.contact?.phone || '+919820012345'}`;
       window.open(tel, '_self');
       return;
     }
@@ -238,7 +238,7 @@ export default function LiveWebsiteRenderer({
     if (normUrl.startsWith('mailto:') || actionType === 'mailto' || normLabel.includes('email')) {
       const mailto = normUrl.startsWith('mailto:')
         ? normUrl
-        : `mailto:${brand.contact?.email || 'hello@domain.com'}`;
+        : `mailto:${brand.contact?.email || 'contact@business.in'}`;
       window.open(mailto, '_self');
       return;
     }

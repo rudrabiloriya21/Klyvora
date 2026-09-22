@@ -199,6 +199,7 @@ function AppRouter() {
         <Hero
           onExploreClick={() => scrollToSection('features')}
           onDiscoverXeorviaClick={() => scrollToSection('xeorvia')}
+          onStartBuilding={() => navigate(currentUser ? '#/dashboard' : '#/login')}
         />
 
         <About />

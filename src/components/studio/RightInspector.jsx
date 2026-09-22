@@ -238,7 +238,7 @@ export default function RightInspector({
                   handleAddItem('items', {
                     name: 'New Offering',
                     title: 'New Offering',
-                    price: '$10.00',
+                    price: '₹499',
                     desc: 'Quality handcrafted item.',
                     q: 'New Question?',
                     a: 'Helpful answer here.',
@@ -285,7 +285,7 @@ export default function RightInspector({
                       type="text"
                       value={item.price || ''}
                       onChange={(e) => handleItemChange('items', idx, 'price', e.target.value)}
-                      placeholder="$0.00"
+                      placeholder="₹499"
                       className="form-input subitem-input font-mono"
                     />
                   )}

@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowRight, ChevronDown, Compass } from 'lucide-react';
 import HeroCanvas from './HeroCanvas';
 
-export default function Hero({ onExploreClick, onDiscoverXeorviaClick }) {
+export default function Hero({ onExploreClick, onDiscoverXeorviaClick, onStartBuilding }) {
   return (
     <section id="home" className="hero-section" aria-labelledby="hero-heading">
       {/* Background Canvas & Ambient Lighting */}
@@ -18,71 +18,68 @@ export default function Hero({ onExploreClick, onDiscoverXeorviaClick }) {
         <div className="hero-pill-badge-wrap">
           <div className="badge-pill hero-badge">
             <span className="badge-dot" />
-            <span>A digital experience by Xeorvia</span>
+            <span>🇮🇳 India's #1 AI Website Builder for Bharat</span>
           </div>
         </div>
 
         {/* Main Cinematic Headline */}
         <h1 id="hero-heading" className="hero-title font-display">
-          Where Ideas Become <span className="gradient-text">Digital Experiences.</span>
+          Build Your Shop, Coaching Institute, or Startup Website <span className="gradient-text">in 30 Seconds.</span>
         </h1>
 
         {/* Supporting Description */}
         <p className="hero-description">
-          Klyvora is a modern digital experience created by Xeorvia—designed with purpose,
-          built for what comes next.
+          Over 60 million Indian businesses don't have a website yet. Klyvora creates stunning, mobile-first
+          websites with 1-tap WhatsApp direct ordering, UPI pricing in ₹, and Google Maps footfall—ready in seconds with AI.
         </p>
 
         {/* CTAs */}
         <div className="hero-actions">
+          <button
+            type="button"
+            onClick={onStartBuilding || onExploreClick}
+            className="btn btn-primary hero-btn-primary"
+            id="hero-create-cta"
+          >
+            <span>Start Building Free</span>
+            <ArrowRight size={18} />
+          </button>
+
           <a
             href="#features"
             onClick={(e) => {
               e.preventDefault();
               onExploreClick();
             }}
-            className="btn btn-primary hero-btn-primary"
+            className="btn btn-secondary hero-btn-secondary"
             id="hero-explore-cta"
           >
-            <span>Explore Klyvora</span>
-            <ArrowRight size={18} />
-          </a>
-
-          <a
-            href="#xeorvia"
-            onClick={(e) => {
-              e.preventDefault();
-              onDiscoverXeorviaClick();
-            }}
-            className="btn btn-secondary hero-btn-secondary"
-            id="hero-discover-cta"
-          >
-            <span>Discover Xeorvia</span>
+            <span>See Indian Demos</span>
             <Compass size={17} />
           </a>
         </div>
 
-        {/* Futuristic System Telemetry Strip */}
+        {/* System Telemetry Strip Focused on Indian Businesses */}
         <div className="hero-telemetry-strip" aria-label="System Specifications">
           <div className="telemetry-item">
             <span className="telemetry-dot" />
-            <span className="telemetry-label">ORIGIN</span>
-            <span className="telemetry-value">XEORVIA LABS</span>
+            <span className="telemetry-label">FOR</span>
+            <span className="telemetry-value">BHARAT BUSINESSES</span>
           </div>
           <div className="telemetry-separator" aria-hidden="true">/</div>
           <div className="telemetry-item">
-            <span className="telemetry-label">EXPERIENCE</span>
-            <span className="telemetry-value">CINEMATIC DIGITAL</span>
+            <span className="telemetry-label">COMMERCE</span>
+            <span className="telemetry-value">WHATSAPP & UPI (₹)</span>
           </div>
           <div className="telemetry-separator" aria-hidden="true">/</div>
           <div className="telemetry-item">
             <span className="telemetry-label">SYSTEM</span>
-            <span className="telemetry-value">REACTIVE & FLUID</span>
+            <span className="telemetry-value">MOBILE-FIRST 5G</span>
           </div>
           <div className="telemetry-separator" aria-hidden="true">/</div>
           <div className="telemetry-item">
-            <span className="telemetry-label">STATUS</span>
-            <span className="telemetry-value telemetry-status">ONLINE</span>
+            <span className="telemetry-label">AI SPEED</span>
+            <span className="telemetry-value telemetry-status">&lt; 30 SECONDS</span>
           </div>
         </div>
 

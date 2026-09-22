@@ -34,14 +34,19 @@ export const storageService = {
       }
       const parsed = JSON.parse(existing);
       if (Array.isArray(parsed)) {
-        const hasLuma = parsed.some((p) => p.metadata?.name?.includes('Luma & Bean'));
-        if (!hasLuma) {
+        const hasKavya = parsed.some((p) => p.metadata?.name?.includes('Kavya Handloom'));
+        if (!hasKavya) {
           const seeds = getSeedTemplates();
-          const luma = seeds.find((s) => s.metadata?.name?.includes('Luma & Bean'));
-          if (luma) {
-            parsed.unshift(luma);
-            getStorage().setItem(STORAGE_KEY, JSON.stringify(parsed));
-          }
+          // Keep user's custom created projects, while updating seed templates to new Indian business templates
+          const userCreated = parsed.filter((p) =>
+            !p.id?.startsWith('tpl_') &&
+            !p.metadata?.name?.includes('Luma & Bean') &&
+            !p.metadata?.name?.includes('Synapse') &&
+            !p.metadata?.name?.includes('Nexus Studio')
+          );
+          const updated = [...seeds, ...userCreated];
+          getStorage().setItem(STORAGE_KEY, JSON.stringify(updated));
+          return updated;
         }
       }
       return parsed;

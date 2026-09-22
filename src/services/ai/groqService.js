@@ -120,21 +120,29 @@ export const groqService = {
   async generateWebsiteFromPrompt(prompt, userId) {
     const { apiKey, apiUrl, modelId, timeoutMs } = this.getCredentials();
 
-    const systemPrompt = `You are the Lead Digital Architect for Klyvora Studio (created by Xeorvia).
+    const systemPrompt = `You are the Lead Digital Architect for Klyvora Studio (India's #1 AI website builder for shops, coaching institutes, clinics, and startups).
 Generate a complete, world-class, bespoke website specification tailored specifically to the user's prompt.
+
+REGIONAL & BUSINESS DIRECTIVES:
+1. CURRENCY: All prices, fees, and catalog items MUST be formatted in Indian Rupees (₹) with realistic Indian price points (e.g., ₹499, ₹1,299, ₹4,999, ₹14,999, ₹65,000) unless explicitly requested otherwise in foreign currency. NEVER default to dollars ($).
+2. WHATSAPP-FIRST: Provide an Indian WhatsApp contact number (+91 98765 43210) and prominent WhatsApp CTA ("Order via WhatsApp", "WhatsApp Admission Helpline", "Book on WhatsApp").
+3. LOCATION: Default to relevant Indian cities/states (e.g., Jaipur, Bengaluru, Mumbai, Delhi, Kota, Hyderabad, Pune, Chennai, Kolkata, Ahmedabad) unless specified.
+4. VERNACULAR & HINGLISH: Intuitively handle English, Hindi, and Hinglish business requests (e.g. "kapde ki dukan", "coaching center", "mithai shop", "startup website").
+5. AUTHENTIC REVIEWS: Use authentic Indian customer, student, or client names (e.g. Pooja Sharma, Rohan Mehta, Dr. Ananya Iyer, Rajesh Patel, Sneha Kulkarni).
+
 You MUST output a valid JSON object matching this schema exactly:
 {
   "name": "Creative business or website name",
-  "category": "Cafe | Bakery | Restaurant | SaaS Startup | Agency | Portfolio | E-commerce | Fitness | Consulting | Local Service",
+  "category": "Retail Shop | Saree Boutique | Coaching Institute | Tech Startup | Cafe & Mithai | Clinic | Agency | E-commerce | Supermarket | Local Service",
   "tagline": "Compelling, memorable tagline (under 12 words)",
   "description": "Comprehensive brand summary and value proposition (2-3 sentences)",
-  "location": "City, State or Global",
-  "phone": "+1 (555) 000-0000",
-  "email": "contact@domain.com",
-  "whatsapp": "+15550000000",
-  "hours": "Operating hours e.g. Mon–Sun: 7:00 AM – 6:00 PM",
+  "location": "City, State, India (e.g. Indiranagar, Bengaluru, Karnataka)",
+  "phone": "+91 98765 43210",
+  "email": "contact@domain.in",
+  "whatsapp": "+919876543210",
+  "hours": "Operating hours e.g. Mon–Sun: 9:00 AM – 8:00 PM",
   "theme": {
-    "primaryColor": "Hex color tailored to brand (e.g. #e07a5f for warm cafe, #10b981 for emerald, #06b6d4 for tech cyan, #8b5cf6 for luxury violet, #f59e0b for amber hearth, #ef4444 for crimson dining)",
+    "primaryColor": "Hex color tailored to brand (e.g. #f59e0b for warm saffron/amber, #10b981 for emerald, #06b6d4 for tech cyan, #8b5cf6 for luxury violet, #ef4444 for royal crimson, #ec4899 for bridal pink)",
     "secondaryColor": "Harmonious hex color code",
     "accentColor": "Vibrant accent hex color code",
     "bgColor": "Deep dark hex background e.g. #07080c, #09090b, #0c0a09",
@@ -142,15 +150,15 @@ You MUST output a valid JSON object matching this schema exactly:
   },
   "hero": {
     "heading": "Inspiring, punchy main H1 headline (under 10 words)",
-    "subheading": "Engaging sub-headline detailing the unique value proposition",
+    "subheading": "Engaging sub-headline detailing the unique value proposition for Indian customers",
     "badge": "✦ EYE-CATCHING ALL-CAPS BADGE",
-    "primaryBtnText": "Primary CTA label e.g. Explore Menu, View Plans, Book Session",
-    "secondaryBtnText": "Secondary CTA label e.g. WhatsApp Order, Contact Us"
+    "primaryBtnText": "Primary CTA label e.g. Order via WhatsApp, Explore Menu, View Batches, Start Free Trial",
+    "secondaryBtnText": "Secondary CTA label e.g. Call Store, View Fees, Contact Us"
   },
   "about": {
     "heading": "About section title",
-    "paragraph1": "Rich narrative about the craft, vision, and philosophy.",
-    "paragraph2": "Secondary narrative emphasizing quality, sourcing, and customer dedication."
+    "paragraph1": "Rich narrative about the craft, heritage, vision, and dedication.",
+    "paragraph2": "Secondary narrative emphasizing quality, customer trust, and transparency."
   },
   "features": [
     { "title": "Feature 1 Title", "description": "Compelling explanation of this offering or standard" },
@@ -158,24 +166,24 @@ You MUST output a valid JSON object matching this schema exactly:
     { "title": "Feature 3 Title", "description": "Compelling explanation of this offering or standard" }
   ],
   "showcaseItems": [
-    { "title": "Signature Item 1", "description": "Rich culinary, product, or service details", "price": "$12.00", "tag": "BESTSELLER" },
-    { "title": "Signature Item 2", "description": "Rich culinary, product, or service details", "price": "$16.50", "tag": "SIGNATURE" },
-    { "title": "Signature Item 3", "description": "Rich culinary, product, or service details", "price": "$9.00", "tag": "POPULAR" },
-    { "title": "Signature Item 4", "description": "Rich culinary, product, or service details", "price": "$22.00", "tag": "SEASONAL" }
+    { "title": "Signature Item 1", "description": "Rich product, course, or service details", "price": "₹1,499", "tag": "BESTSELLER" },
+    { "title": "Signature Item 2", "description": "Rich product, course, or service details", "price": "₹3,999", "tag": "SIGNATURE" },
+    { "title": "Signature Item 3", "description": "Rich product, course, or service details", "price": "₹799", "tag": "POPULAR" },
+    { "title": "Signature Item 4", "description": "Rich product, course, or service details", "price": "₹7,499", "tag": "FESTIVE" }
   ],
   "testimonials": [
-    { "name": "Elena Rostova", "role": "Architect & Regular", "comment": "Authentic, glowing customer quote highlighting quality." },
-    { "name": "Marcus Chen", "role": "Creative Director", "comment": "Another glowing review highlighting exceptional taste or craft." }
+    { "name": "Pooja Sharma", "role": "Verified Patron", "comment": "Authentic, glowing customer quote highlighting quality and service." },
+    { "name": "Rohan Mehta", "role": "Business Owner", "comment": "Another glowing review highlighting exceptional value or fast WhatsApp delivery." }
   ],
   "pricing": [
-    { "name": "Starter", "price": "$29", "period": "/mo or flat", "popular": false, "features": ["Feature A", "Feature B", "Feature C"] },
-    { "name": "Professional", "price": "$79", "period": "/mo or flat", "popular": true, "features": ["Everything in Starter", "Feature D", "Feature E", "Priority Support"] },
-    { "name": "Bespoke", "price": "Custom", "period": "", "popular": false, "features": ["Dedicated Consultant", "Unlimited Access", "24/7 SLA"] }
+    { "name": "Starter", "price": "₹499", "period": "/mo or flat", "popular": false, "features": ["Feature A", "Feature B", "Feature C"] },
+    { "name": "Growth Pro", "price": "₹1,499", "period": "/mo or flat", "popular": true, "features": ["Everything in Starter", "Feature D", "Feature E", "WhatsApp Priority Support"] },
+    { "name": "Enterprise", "price": "₹4,999", "period": "/mo or custom", "popular": false, "features": ["Dedicated Manager", "Unlimited Access", "24/7 SLA"] }
   ],
   "faq": [
-    { "question": "Relevant question about reservations, ordering, or process?", "answer": "Clear, informative answer providing confidence." },
-    { "question": "What is the pre-order or consultation policy?", "answer": "Customer-friendly explanation." },
-    { "question": "How can we contact the team directly?", "answer": "Direct assistance channels including WhatsApp and email." }
+    { "question": "How can I place an order or admission inquiry?", "answer": "You can tap our WhatsApp button to chat directly with our team or call our store." },
+    { "question": "What payment methods do you accept?", "answer": "We accept UPI (Google Pay, PhonePe, Paytm), Netbanking, Cards, and Cash on Delivery." },
+    { "question": "Do you offer delivery across India?", "answer": "Yes, we provide express shipping across all pin codes in India." }
   ]
 }
 OUTPUT RAW JSON ONLY. NO MARKDOWN TICKS, NO PREAMBLE.`;
@@ -402,7 +410,7 @@ OUTPUT RAW JSON ONLY.`;
     // 4. Products / Menu Section (FULLY POPULATED)
     const showcaseList = (data.showcaseItems || data.products || []).map((item, idx) => ({
       name: item.title || item.name || `Signature Offering 0${idx + 1}`,
-      price: item.price || (isFood ? `$${(8 + idx * 4.5).toFixed(2)}` : '$49.00'),
+      price: item.price || (isFood ? `₹${249 + idx * 100}` : `₹${799 + idx * 400}`),
       desc: item.description || item.desc || 'Prepared with highest standard ingredients and exceptional care.',
       tag: item.tag || (idx === 0 ? 'BESTSELLER' : idx === 1 ? 'SIGNATURE' : 'POPULAR'),
       imageUrl: item.imageUrl || getCuratedPhoto(category, idx),
@@ -413,9 +421,9 @@ OUTPUT RAW JSON ONLY.`;
       heading: isFood ? 'Artisan Provisions & Selections' : 'Signature Products & Solutions',
       subheading: 'Curated and crafted with precision for our patrons and clients.',
       items: showcaseList.length > 0 ? showcaseList : [
-        { name: 'Signature Offering 01', price: '$14.00', desc: 'Handcrafted daily with premium sourcing.', tag: 'Bestseller', imageUrl: getCuratedPhoto(category, 0) },
-        { name: 'Signature Offering 02', price: '$18.50', desc: 'Award-winning craft, seasonal availability.', tag: 'Signature', imageUrl: getCuratedPhoto(category, 1) },
-        { name: 'Signature Offering 03', price: '$11.00', desc: 'Customer favorite, freshly prepared.', tag: 'Popular', imageUrl: getCuratedPhoto(category, 2) },
+        { name: 'Signature Offering 01', price: '₹999', desc: 'Handcrafted daily with premium sourcing.', tag: 'Bestseller', imageUrl: getCuratedPhoto(category, 0) },
+        { name: 'Signature Offering 02', price: '₹1,999', desc: 'Award-winning craft, seasonal availability.', tag: 'Signature', imageUrl: getCuratedPhoto(category, 1) },
+        { name: 'Signature Offering 03', price: '₹749', desc: 'Customer favorite, freshly prepared.', tag: 'Popular', imageUrl: getCuratedPhoto(category, 2) },
       ],
     });
 
@@ -438,38 +446,38 @@ OUTPUT RAW JSON ONLY.`;
     // 6. Testimonials Section (FULLY POPULATED)
     const reviewsList = (data.testimonials || []).map((t) => ({
       quote: t.comment || t.quote || 'An extraordinary standard of excellence in every detail.',
-      author: t.name || t.author || 'Elena Rostova',
+      author: t.name || t.author || 'Pooja Sharma',
       role: t.role || 'Verified Patron',
       rating: 5,
     }));
 
     const testimonialsSection = createSection('testimonials', {
-      badge: 'COMMUNITY REVIEWS',
-      heading: 'Endorsed by Regulars & Critics',
+      badge: 'CUSTOMER REVIEWS',
+      heading: 'Endorsed by Regulars & Clients Across India',
       items: reviewsList.length > 0 ? reviewsList : [
-        { quote: 'The attention to craft is unmatched. Hands down the finest experience in the city.', author: 'Elena Rostova', role: 'Architect & Regular', rating: 5 },
-        { quote: 'Fast, seamless ordering via WhatsApp and impeccable quality every single time.', author: 'Marcus Vance', role: 'Design Director', rating: 5 },
+        { quote: 'The attention to craft is unmatched. 1-tap WhatsApp ordering is fast and convenient.', author: 'Pooja Sharma', role: 'Jaipur Patron', rating: 5 },
+        { quote: 'Impeccable quality and transparent pricing in ₹ every single time. Highly recommended!', author: 'Rahul Verma', role: 'Verified Client', rating: 5 },
       ],
     });
 
     // 7. Pricing Section (FULLY POPULATED)
     const pricingList = (data.pricing || []).map((p, idx) => ({
       name: p.name || `Tier 0${idx + 1}`,
-      price: p.price || (idx === 0 ? '$29' : idx === 1 ? '$79' : '$199'),
+      price: p.price || (idx === 0 ? '₹499' : idx === 1 ? '₹1,499' : '₹4,999'),
       period: p.period || '/month',
       desc: p.description || (idx === 1 ? 'Our most popular comprehensive engagement.' : 'Essential package with dedicated support.'),
       popular: Boolean(p.popular || idx === 1),
-      features: Array.isArray(p.features) ? p.features : ['Full Access', 'Dedicated Account Lead', 'Priority 24/7 SLA'],
+      features: Array.isArray(p.features) ? p.features : ['Full Access', 'WhatsApp Dedicated Lead', 'UPI / QR Ready'],
     }));
 
     const pricingSection = createSection('pricing', {
       badge: 'TRANSPARENT PLANS',
-      heading: 'Straightforward Engagements',
+      heading: 'Straightforward Engagements in ₹',
       subheading: 'Choose the plan tailored to your scale and requirements.',
       plans: pricingList.length > 0 ? pricingList : [
-        { name: 'Essential', price: '$29', period: '/month', desc: 'Perfect for individuals and small teams.', popular: false, features: ['Core Features', 'Email Support', 'Weekly Updates'] },
-        { name: 'Professional', price: '$79', period: '/month', desc: 'Our most popular tier for growing ventures.', popular: true, features: ['Everything in Essential', 'Priority Support', 'Full Analytics', 'Dedicated Manager'] },
-        { name: 'Bespoke', price: 'Custom', period: '', desc: 'Custom enterprise integration and support.', popular: false, features: ['Unlimited Bandwidth', 'Dedicated SLA', 'Custom Integrations'] },
+        { name: 'Starter', price: '₹499', period: '/month', desc: 'Perfect for individuals and small shops.', popular: false, features: ['Core Features', 'WhatsApp Inquiries', 'Weekly Updates'] },
+        { name: 'Growth Pro', price: '₹1,499', period: '/month', desc: 'Our most popular tier for growing businesses.', popular: true, features: ['Everything in Starter', 'Priority Support', 'UPI Integration', 'Dedicated Manager'] },
+        { name: 'Enterprise', price: '₹4,999', period: '/month', desc: 'Custom integration and dedicated support.', popular: false, features: ['Unlimited Inquiries', 'Custom Domain', '24/7 SLA'] },
       ],
     });
 
@@ -483,9 +491,9 @@ OUTPUT RAW JSON ONLY.`;
       badge: 'COMMON INQUIRIES',
       heading: 'Frequently Asked Questions',
       items: faqList.length > 0 ? faqList : [
-        { q: 'How do I place an order or booking?', a: 'You can reach out directly via WhatsApp or submit our inquiry form below.' },
-        { q: 'What is your cancellation or modification policy?', a: 'We offer flexible 24-hour adjustments on all reservations and orders.' },
-        { q: 'Do you cater to custom corporate or private requests?', a: 'Yes, contact our team directly for tailored private arrangements.' },
+        { q: 'How do I place an order or booking?', a: 'You can reach out directly via WhatsApp or call our team directly.' },
+        { q: 'What payment methods do you accept?', a: 'We accept UPI (Google Pay, PhonePe, Paytm), Netbanking, and Cash on Delivery.' },
+        { q: 'Do you deliver across India?', a: 'Yes, we provide express shipping across all pin codes in India.' },
       ],
     });
 
@@ -493,7 +501,7 @@ OUTPUT RAW JSON ONLY.`;
     const contactSection = createSection('contact', {
       badge: 'GET IN TOUCH',
       heading: 'Connect with Our Team',
-      subheading: `Located in ${data.location || 'San Francisco, CA'}. We welcome your inquiry and visit.`,
+      subheading: `Located in ${data.location || 'Bengaluru, Karnataka'}. We welcome your inquiry and visit.`,
     });
 
     // 10. Footer Section
@@ -547,13 +555,13 @@ OUTPUT RAW JSON ONLY.`;
         tagline: data.tagline || `${brandName} — Pure Distinction`,
         category,
         description,
-        location: data.location || 'San Francisco, CA',
+        location: data.location || 'Bandra West, Mumbai',
         contact: {
-          email: data.email || 'contact@domain.com',
-          phone: data.phone || '+1 (555) 000-0000',
-          whatsapp: data.whatsapp || '+15550000000',
-          address: data.location || 'San Francisco, CA',
-          openingHours: data.hours || 'Mon–Sun: 7:00 AM – 7:00 PM',
+          email: data.email || 'contact@domain.in',
+          phone: data.phone || '+91 98200 12345',
+          whatsapp: data.whatsapp || '+919820012345',
+          address: data.location || 'Bandra West, Mumbai, Maharashtra 400050',
+          openingHours: data.hours || 'Mon–Sat: 9:30 AM – 8:30 PM',
         },
         social: {
           instagram: `https://instagram.com/${brandName.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
@@ -586,157 +594,157 @@ OUTPUT RAW JSON ONLY.`;
 
     if (catKey === 'restaurant') {
       return {
-        name: 'Sakura Omakase Lounge',
+        name: 'Dawat-e-Khas Heritage Dining',
         category: 'Restaurant',
-        tagline: 'The Art of Edomae Culinary Splendor',
-        description: 'An intimate 12-seat Japanese sushi counter and natural wine salon serving seasonal Toyosu market arrivals.',
-        location: 'Downtown San Francisco, CA',
-        phone: '+1 (555) 789-0123',
-        email: 'reservations@sakuraomakase.com',
-        whatsapp: '+15557890123',
-        hours: 'Tue–Sun: 5:30 PM – 10:30 PM',
+        tagline: 'Authentic Royal Mughlai & Awadhi Flavors',
+        description: 'Iconic fine dining restaurant serving slow-cooked dum biryanis, melt-in-mouth galouti kebabs, and rich Mughlai gravies in a regal palace ambiance.',
+        location: 'Connaught Place, New Delhi',
+        phone: '+91 98110 54321',
+        email: 'reservations@dawatekhas.in',
+        whatsapp: '+919811054321',
+        hours: 'Mon–Sun: 12:30 PM – 11:30 PM',
         theme: { primaryColor: '#ef4444', secondaryColor: '#f59e0b', accentColor: '#f43f5e', bgColor: '#06070a', borderRadius: '14px' },
-        hero: { heading: 'Culinary Artistry Meets Edomae Mastery.', subheading: 'A multi-course omakase journey paired with rare cellar vintages and artisanal sake.', badge: '✦ MICHELIN GUIDED EXCELLENCE', primaryBtnText: 'Reserve Omakase', secondaryBtnText: 'WhatsApp Inquiries' },
-        about: { heading: 'A Dedication to the Season & Ocean', paragraph1: 'Every morning, our chef team inspects direct air freight shipments from Tokyo fish auctions, dry-aging and curing seafood to its peak umami.', paragraph2: 'We believe hospitality is an unspoken conversation of care, warmth, and precision.' },
+        hero: { heading: 'Royal Awadhi Heritage on Your Platter.', subheading: 'Slow-cooked handi biryanis, artisanal tandoori platters, and authentic family recipes passed down generations.', badge: '✦ BEST MUGHLAI RESTAURANT IN DELHI NCR', primaryBtnText: 'Reserve Table', secondaryBtnText: 'WhatsApp Ordering' },
+        about: { heading: 'A Dedication to Dum Pukht & Pure Ghee', paragraph1: 'Every dish at Dawat-e-Khas is slow-cooked in sealed copper handis over low embers, sealing in the delicate aromas of saffron, cardamom, and rose water.', paragraph2: 'We believe Indian hospitality is an honored tradition of warmth, generosity, and exquisite taste.' },
         features: [
-          { title: 'Wild Toyosu Seafood', description: 'Direct weekly air-freight from Tokyo fish markets.' },
-          { title: 'Aged Red Vinegar Shari', description: 'Niigata rice seasoned with vintage akazu vinegar.' },
-          { title: 'Curated Sake Pairing', description: 'Small-batch artisanal junmai daiginjo cellars.' }
+          { title: 'Slow Dum Pukht Cooking', description: 'Sealed dough handis slow-cooked for over 6 hours.' },
+          { title: 'Pure Kashmiri Saffron', description: 'Handpicked authentic saffron and whole spices.' },
+          { title: '1-Tap WhatsApp Booking', description: 'Instant table reservations and VIP private dining.' }
         ],
         showcaseItems: [
-          { title: 'Otoro Nigiri with Fresh Wasabi', description: 'Fatty bluefin tuna belly gently kissed by charcoal binchotan.', price: '$18.00', tag: 'Signature' },
-          { title: 'Hokkaido Bafun Uni Spoon', description: 'Sweet creamy sea urchin crowned with Oscietra caviar.', price: '$24.00', tag: 'Bestseller' },
-          { title: 'A5 Miyazaki Wagyu Sukiyaki', description: 'Thinly shaved marble beef with slow-poached onsen yolk.', price: '$28.00', tag: 'Deluxe' }
+          { title: 'Awadhi Gosht Dum Biryani', description: 'Tender mutton layered with aged basmati rice and saffron milk.', price: '₹650', tag: 'Bestseller' },
+          { title: 'Melt-in-Mouth Galouti Kebab', description: 'Finely minced spiced mutton served with flaky ulte tawa ka paratha.', price: '₹580', tag: 'Signature' },
+          { title: 'Murgh Makhani Special', description: 'Tandoori chicken simmered in rich creamy tomato and butter gravy.', price: '₹520', tag: 'Chef Choice' }
         ],
         testimonials: [
-          { name: 'Kaito Tanaka', role: 'Culinary Critic', comment: 'The finest Edomae sushi experience on the West Coast. Simply magnificent.' },
-          { name: 'Claire Dupont', role: 'Sommelier', comment: 'The wine and sake pairings elevated each delicate bite to absolute poetry.' }
+          { name: 'Chef Sanjeev Kapur', role: 'Food Critic, Delhi', comment: 'The Galouti kebabs are among the finest in the country. Pure culinary magic.' },
+          { name: 'Dr. Ananya Sen', role: 'Regular Patron', comment: 'Celebrated our anniversary here. The ambiance and authentic flavors made it unforgettable.' }
         ],
         pricing: [
-          { name: 'Tasting Menu', price: '$165', period: '/guest', popular: false, features: ['12 Nigiri Courses', 'Miso Soup & Chawanmushi', 'Seasonal Dessert'] },
-          { name: 'Grand Omakase', price: '$245', period: '/guest', popular: true, features: ['18 Premium Courses', 'Oscietra Caviar & Uni', 'Full Sake Pairing', 'Priority Booking'] }
+          { name: 'Royal Awadhi Thali', price: '₹1,199', period: '/guest', popular: false, features: ['2 Kebabs & 2 Curries', 'Dum Biryani & Breads', 'Shahi Tukda Dessert', 'Unlimited Welcome Drinks'] },
+          { name: 'Nawabi Grand Feast', price: '₹2,199', period: '/guest', popular: true, features: ['Chef Special 5-Course Meal', 'Unlimited Kebabs & Tandoor', 'Custom Mocktail Pairing', 'Priority VIP Seating'] }
         ],
         faq: [
-          { question: 'Do you accommodate dietary restrictions?', answer: 'We can accommodate shellfish or gluten sensitivities with 48-hour advance notice.' },
-          { question: 'How can I reserve a counter seat?', answer: 'Reservations open on the 1st of every month via our website or WhatsApp concierge.' }
+          { question: 'Do you offer pure vegetarian options?', answer: 'Yes! We have a dedicated separate vegetarian kitchen section with paneer tikka, dal makhani, and subz biryani.' },
+          { question: 'How can I reserve a table for family events?', answer: 'You can book directly via WhatsApp or call our reservation desk at +91 98110 54321.' }
         ]
       };
     }
 
     if (catKey === 'cafe' || catKey === 'bakery') {
       return {
-        name: 'Aura Artisan Roastery & Bakes',
-        category: 'Cafe',
-        tagline: 'Single-Origin Roasts & Natural Fermentations',
-        description: 'Boutique coffee bar and artisan bakery serving slow-poured micro-roasts, cold brews, and flaky morning viennoiserie.',
-        location: 'San Francisco, CA',
-        phone: '+1 (555) 234-8901',
-        email: 'hello@auracoffee.com',
-        whatsapp: '+15552348901',
-        hours: 'Mon–Sun: 6:30 AM – 4:00 PM',
+        name: 'The Chai & Roast Cafe',
+        category: 'Cafe & Bakery',
+        tagline: 'Artisanal Teas, Single-Origin South Indian Filter Coffee & Bakes',
+        description: 'Cozy neighborhood cafe serving hand-brewed Chikmagalur coffees, artisanal masala chai, and freshly baked puffs and cakes.',
+        location: 'Indiranagar, Bengaluru, Karnataka',
+        phone: '+91 98450 67890',
+        email: 'hello@chairoast.in',
+        whatsapp: '+919845067890',
+        hours: 'Mon–Sun: 7:30 AM – 11:00 PM',
         theme: { primaryColor: '#e07a5f', secondaryColor: '#3d405b', accentColor: '#81b29a', bgColor: '#0c0a09', borderRadius: '14px' },
-        hero: { heading: 'Slow Coffee & Warm Morning Bakes.', subheading: 'Naturally fermented sourdough buns, single-origin espresso, and neighborhood warmth.', badge: '✦ FRESH ROASTED DAILY', primaryBtnText: 'Explore Menu', secondaryBtnText: 'WhatsApp Order' },
-        about: { heading: 'From Farm to Roaster, Without Compromise', paragraph1: 'We partner directly with regenerative coffee cooperatives across Ethiopia and Colombia, roasting weekly in small batches.', paragraph2: 'Our bakery pairs these nuanced beans with sourdough breads fermented for 36 hours.' },
+        hero: { heading: 'Where Warm Chai Meets Artisan Bakes.', subheading: 'Chikmagalur filter coffee, handcrafted saffron cutting chai, and warm butter croissants in Bengaluru.', badge: '✦ FRESH ROASTS & BAKES HOURLY', primaryBtnText: 'View Cafe Menu', secondaryBtnText: 'Order on WhatsApp' },
+        about: { heading: 'From Western Ghats Estates to Your Cup', paragraph1: 'We source high-altitude shade-grown Arabica beans directly from sustainable estates in Coorg and Chikmagalur.', paragraph2: 'Our bakery pairs these aromatic brews with fresh buttery bakes, egg puffs, and tea-time cakes prepared hourly.' },
         features: [
-          { title: 'Single-Origin Direct Trade', description: 'Direct relationship coffee beans roasted every Tuesday.' },
-          { title: '36-Hour Sourdough Ferment', description: 'Wild yeast sourdough buns and rustic country loaves.' },
-          { title: 'Pre-Order via WhatsApp', description: 'Skip morning queues with instant text ordering.' }
+          { title: 'Chikmagalur Shade-Grown Coffee', description: 'Single-estate roasts ground fresh for every cup.' },
+          { title: 'Kulhad Masala Chai', description: 'Simmered with crushed ginger, green cardamom, and cloves.' },
+          { title: 'High-Speed Wi-Fi for Work', description: 'Spacious workspace booths with power outlets and warm coffee.' }
         ],
         showcaseItems: [
-          { title: 'Kyoto Slow-Drip Cold Brew', description: '12-hour tower extraction with notes of dark cacao and citrus.', price: '$6.25', tag: 'Bestseller' },
-          { title: 'Cardamom Pistachio Morning Knot', description: 'Flaky laminated pastry rolled in crushed cardamom sugar.', price: '$5.50', tag: 'Baked Daily' },
-          { title: 'Ceremonial Uji Matcha Latte', description: 'First-harvest Kyoto green tea with organic oat milk.', price: '$6.50', tag: 'Signature' }
+          { title: 'Traditional South Indian Filter Kaapi', description: 'Strong decoction poured with frothy full-cream milk in a brass davara.', price: '₹95', tag: 'Bestseller' },
+          { title: 'Kesar Elaichi Kulhad Chai', description: 'Creamy slow-simmered tea served in traditional terracotta clay cups.', price: '₹80', tag: 'Favorite' },
+          { title: 'Paneer Tikka Puff & Croissant', description: 'Flaky laminated pastry stuffed with smoky tandoori paneer.', price: '₹140', tag: 'Hot Bake' }
         ],
         testimonials: [
-          { name: 'Marcus Chen', role: 'Architect & Regular', comment: 'The Kyoto Cold Brew and Cardamom knot make my mornings complete.' },
-          { name: 'Elena Vance', role: 'Coffee Enthusiast', comment: 'The cleanest pour-overs in the Bay Area. Impeccable roasting.' }
+          { name: 'Karthik Rao', role: 'Software Engineer, Bengaluru', comment: 'My daily workstation. The filter coffee keeps me energized and the atmosphere is so calm.' },
+          { name: 'Sneha Nambiar', role: 'Food Blogger', comment: 'The best Kulhad chai in Indiranagar. Their paneer puffs are legendary!' }
         ],
         pricing: [
-          { name: 'Coffee Club', price: '$22', period: '/month', popular: true, features: ['1 Bag Fresh Whole Bean', 'Free Drink in Store', '10% Off All Pastries'] },
-          { name: 'Office Tier', price: '$85', period: '/month', popular: false, features: ['4 Bags Fresh Whole Bean', 'Weekly Delivery', 'Free Brewing Equipment Consultation'] }
+          { name: 'Weekly Work & Coffee Pass', price: '₹999', period: '/week', popular: true, features: ['5 Premium Coffees or Chais', 'Dedicated quiet desk seating', '15% Off all bakes and snacks'] },
+          { name: 'Monthly Coffee Enthusiast', price: '₹2,499', period: '/month', popular: false, features: ['Unlimited Regular Brews', '1 Free Bag of Estate Roasted Beans', 'Priority table booking'] }
         ],
         faq: [
-          { question: 'Do you roast your own beans?', answer: 'Yes, we roast in-house in small 5kg batches every Tuesday.' },
-          { question: 'Can I order online for morning pickup?', answer: 'Yes! Text us via WhatsApp and your bag will be warm at the counter.' }
+          { question: 'Do you offer dairy-free milk options?', answer: 'Yes! We offer oat milk, almond milk, and soy milk upon request.' },
+          { question: 'Can we order bakery items in bulk for office meetings?', answer: 'Yes, text us on WhatsApp 2 hours in advance and we will deliver fresh hot boxes.' }
         ]
       };
     }
 
     if (catKey === 'fitness') {
       return {
-        name: 'Apex Athletic Club',
-        category: 'Fitness',
-        tagline: 'High-Performance Functional Training & Recovery',
-        description: 'Premier athletic training facility featuring small-group conditioning, strength programming, and infrared sauna recovery.',
-        location: 'San Francisco, CA',
-        phone: '+1 (555) 456-7890',
-        email: 'info@apexathletic.com',
-        whatsapp: '+15554567890',
-        hours: 'Mon–Fri: 5:00 AM – 9:00 PM',
+        name: 'Shakti Fitness & Yoga Academy',
+        category: 'Fitness & Wellness',
+        tagline: 'Traditional Yoga, Functional Strength & Modern Conditioning',
+        description: 'Premier holistic wellness sanctuary offering classical Ashtanga yoga, modern strength gym equipment, and personalized nutritional guidance.',
+        location: 'Koramangala, Bengaluru',
+        phone: '+91 99800 23456',
+        email: 'join@shaktifitness.in',
+        whatsapp: '+919980023456',
+        hours: 'Mon–Sat: 5:30 AM – 9:30 PM (Sun: 7:00 AM – 1:00 PM)',
         theme: { primaryColor: '#10b981', secondaryColor: '#06b6d4', accentColor: '#34d399', bgColor: '#06070a', borderRadius: '12px' },
-        hero: { heading: 'Train with Purpose. Recover with Precision.', subheading: 'Evidence-based conditioning, expert coaching, and state-of-the-art recovery bays.', badge: '✦ ELITE PERFORMANCE SANCTUARY', primaryBtnText: 'Start 7-Day Trial', secondaryBtnText: 'View Classes' },
-        about: { heading: 'The Standard of Sustainable Strength', paragraph1: 'We believe fitness is not about exhaustion—it is about intelligent progression, structural durability, and longevity.', paragraph2: 'Every member receives personalized baseline metrics and movement screenings.' },
+        hero: { heading: 'Awaken Your Strength. Elevate Your Spirit.', subheading: 'Traditional Hatha & Vinyasa yoga combined with strength training and personalized coaching.', badge: '✦ CERTIFIED OLYMPIC & YOGA COACHES', primaryBtnText: 'Book Free Trial Class', secondaryBtnText: 'WhatsApp Enquiry' },
+        about: { heading: 'Harmonizing Ancient Wisdom with Modern Science', paragraph1: 'True fitness is not just lifting weights—it is breath mastery, muscular endurance, flexibility, and inner discipline.', paragraph2: 'Our certified masters guide beginners and seasoned athletes through safe, transformational fitness journeys.' },
         features: [
-          { title: 'Small Group Coaching', description: 'Maximum 8 athletes per coach for dialed-in form.' },
-          { title: 'Contrast Recovery Bays', description: 'Cold plunge tubs and private infrared saunas.' },
-          { title: 'Custom Programming', description: 'Tailored macrocycles tracking real hypertrophy and VO2 max.' }
+          { title: 'Air-Conditioned Yoga Shala', description: 'Peaceful hardwood studio with eco-friendly mats and props.' },
+          { title: 'Personalized Indian Diet Plans', description: 'Balanced vegetarian and high-protein diet charts tailored to your body.' },
+          { title: 'Women-Only Morning Batches', description: 'Comfortable dedicated training slots with female certified trainers.' }
         ],
         showcaseItems: [
-          { title: 'Functional Strength & Engine', description: 'Compound barbell movements paired with high-output conditioning.', price: '$35 / drop-in', tag: 'Popular' },
-          { title: 'Contrast Therapy & Cold Plunge', description: 'Guided 45-minute infrared sauna and 38°F plunge session.', price: '$40 / session', tag: 'Recovery' },
-          { title: 'Private Performance Assessment', description: 'Comprehensive movement screen and VO2 threshold test.', price: '$99 / session', tag: 'New' }
+          { title: 'Classical Ashtanga Yoga Batch', description: 'Daily 60-minute guided morning yoga for flexibility and mental calm.', price: '₹2,499 / mo', tag: 'Popular' },
+          { title: 'Functional Strength & HIIT', description: 'High-intensity fat-loss and core conditioning sessions.', price: '₹2,999 / mo', tag: 'Bestseller' },
+          { title: '1-on-1 Personal Transformation', description: 'Dedicated personal trainer, posture analysis, and diet tracker.', price: '₹7,999 / mo', tag: 'Exclusive' }
         ],
         testimonials: [
-          { name: 'David Miller', role: 'Marathon Runner', comment: 'The contrast recovery bays and strength coaching cured my chronic knee pain.' },
-          { name: 'Sarah Jenkins', role: 'CrossFit Competitor', comment: 'The most knowledgeable coaches in the city. Real measurable gains.' }
+          { name: 'Vikram Joshi', role: 'IT Manager', comment: 'Lost 12 kgs in 4 months with their functional training and practical Indian meal plan.' },
+          { name: 'Priya Sundaram', role: 'Classical Dancer', comment: 'The yoga instructors are exceptionally knowledgeable. My back pain has completely vanished.' }
         ],
         pricing: [
-          { name: 'Unlimited Membership', price: '$220', period: '/month', popular: true, features: ['Unlimited Classes', 'Sauna & Plunge Access', 'Monthly Screenings'] },
-          { name: 'Recovery Only', price: '$120', period: '/month', popular: false, features: ['8 Recovery Bay Sessions', 'Towel & Locker Service'] }
+          { name: 'Quarterly Membership', price: '₹6,999', period: '/3 months', popular: true, features: ['Unlimited Yoga & Gym Access', 'Monthly Body Composition Test', 'Free Steam & Locker Access'] },
+          { name: 'Annual Transformation Plan', price: '₹19,999', period: '/year', popular: false, features: ['Complete 365-Day Access', 'Quarterly Personal Diet Consultation', '2 Guest Passes Per Month', 'Free Shakti Fitness Kit'] }
         ],
         faq: [
-          { question: 'Is this beginner-friendly?', answer: 'Yes! Every session scales to your current fitness level.' },
-          { question: 'How do I schedule my first session?', answer: 'Click Start Trial or WhatsApp us to book your baseline screening.' }
+          { question: 'Is prior yoga experience required?', answer: 'Not at all. We have beginner batches that start from basic breathwork and foundational postures.' },
+          { question: 'Do you offer trial sessions?', answer: 'Yes! Click "Book Free Trial" or message us on WhatsApp to schedule your complimentary session.' }
         ]
       };
     }
 
     // Default Tech / SaaS / Studio
     return {
-      name: 'Veloce Intelligence Engine',
-      category: 'SaaS Startup',
-      tagline: 'Real-Time Telemetry & Autonomous Workflows',
-      description: 'The modern distributed streaming platform empowering engineering teams to monitor, debug, and automate edge systems at scale.',
-      location: 'San Francisco, CA & Remote',
-      phone: '+1 (555) 902-1200',
-      email: 'hello@veloce.dev',
-      whatsapp: '+15559021200',
-      hours: '24/7 Cloud Availability',
+      name: 'VyaparAI Cloud Platform',
+      category: 'Tech Startup & SaaS',
+      tagline: 'Autonomous GST Billing, WhatsApp CRM & Inventory for Bharat MSMEs',
+      description: 'The smart all-in-one business software empowering Indian shops, distributors, and tech enterprises with instant WhatsApp billing, automated GST filing, and real-time inventory management.',
+      location: 'HSR Layout, Bengaluru, Karnataka',
+      phone: '+91 80 4567 8900',
+      email: 'contact@vyaparai.in',
+      whatsapp: '+918045678900',
+      hours: 'Mon–Sat: 9:00 AM – 7:00 PM IST',
       theme: { primaryColor: '#06b6d4', secondaryColor: '#8b5cf6', accentColor: '#38bdf8', bgColor: '#06070a', borderRadius: '16px' },
-      hero: { heading: 'Autonomous Edge Telemetry for Cloud Scale.', subheading: 'Stream events, monitor distributed traces, and deploy self-healing architectures with millisecond latency.', badge: '✦ POWERED BY SYSTEM ARCHITECT', primaryBtnText: 'Start Free Trial', secondaryBtnText: 'Book Live Demo' },
-      about: { heading: 'Observability Engineered for the Next Decade', paragraph1: 'Traditional monitoring tools choke on high-cardinality streaming data. Veloce was built from the ground up on modern vectorized engines.', paragraph2: 'We empower developers to query billions of telemetry points in under 30 milliseconds.' },
+      hero: { heading: 'Power Your Indian Business with Intelligent Automation.', subheading: 'Generate GST-compliant invoices in 3 seconds, collect UPI payments with 0% gateway fees, and track inventory seamlessly on WhatsApp.', badge: '✦ TRUSTED BY 15,000+ INDIAN MERCHANTS', primaryBtnText: 'Start Free 14-Day Trial', secondaryBtnText: 'Schedule Live Demo' },
+      about: { heading: 'Engineered Specially for Indian Commerce & MSMEs', paragraph1: 'Traditional ERP software is bloated, English-only, and too complicated for fast-paced Indian retail counters. VyaparAI was built from scratch for Indian trade dynamics.', paragraph2: 'From e-way bills to automated WhatsApp payment reminders, we help business owners save 15+ hours every week.' },
       features: [
-        { title: 'Sub-Millisecond Ingestion', description: 'Zero-loss streaming pipeline handling 100k+ events/sec.' },
-        { title: 'Self-Healing Anomaly Routing', description: 'Autonomous edge rules that quarantine bad deployments instantly.' },
-        { title: 'Single Pane of Glass', description: 'Unified tracing, metrics, and application logs in one dashboard.' }
+        { title: '1-Click GST Invoicing', description: 'Auto-calculates CGST, SGST, IGST with HSN code lookup.' },
+        { title: 'Automated WhatsApp Reminders', description: 'Send polite payment links with UPI QR codes directly to customers.' },
+        { title: 'Multi-Language Counter App', description: 'Works smoothly in Hindi, Tamil, Telugu, Marathi, and English.' }
       ],
       showcaseItems: [
-        { title: 'Veloce Edge Agent', description: 'Lightweight eBPF daemon with sub-1% CPU overhead.', price: 'Free Core', tag: 'Open Source' },
-        { title: 'Real-Time Vector Pipeline', description: 'High-throughput stream processing engine with SQL queries.', price: '$0.05 / GB', tag: 'Core Platform' },
-        { title: 'Autonomous Incident Triager', description: 'AI agent that pins root cause commits in under 60 seconds.', price: '$49 / mo', tag: 'Flagship' }
+        { title: 'VyaparAI Mobile POS App', description: 'Fast offline-ready billing on Android tablets and smartphones.', price: 'Free Core', tag: 'Mobile First' },
+        { title: 'Automated GST Reconciliation', description: 'Direct API connection to the GST portal for seamless GSTR-1 & 3B filing.', price: '₹499 / mo', tag: 'Popular' },
+        { title: 'Multi-Store Inventory Sync', description: 'Real-time stock tracking across multiple godowns and retail branches.', price: '₹1,299 / mo', tag: 'Enterprise' }
       ],
       testimonials: [
-        { name: 'Alex Rivera', role: 'VP Infrastructure at CloudScale', comment: 'Veloce cut our mean time to resolution from 45 minutes down to 3 minutes.' },
-        { name: 'Samantha Wu', role: 'Staff SRE at NexaPay', comment: 'The cleanest developer telemetry platform we have ever integrated.' }
+        { name: 'Rajesh Agrawal', role: 'Owner, Agrawal Wholesale Traders, Indore', comment: 'Our payment recovery increased by 35% after using VyaparAI WhatsApp reminders. It is an absolute game changer.' },
+        { name: 'Kavita Menon', role: 'Founder, SpiceRoot Organics, Kochi', comment: 'Handling GST invoices was a nightmare before this. Now even our counter staff issues bills in 5 seconds.' }
       ],
       pricing: [
-        { name: 'Developer', price: '$0', period: '/free forever', popular: false, features: ['Up to 5M Events / Mo', '3-Day Retention', 'Community Slack'] },
-        { name: 'Team', price: '$89', period: '/month', popular: true, features: ['50M Events / Mo', '30-Day Retention', 'Autonomous Remediation', 'Priority Support'] },
-        { name: 'Enterprise', price: 'Custom', period: '', popular: false, features: ['Unlimited Events', 'Dedicated VPC Peering', 'Custom SLA & SOC2'] }
+        { name: 'Vyapar Starter', price: '₹0', period: '/free forever', popular: false, features: ['Up to 100 Invoices / Month', 'Basic WhatsApp Invoicing', 'Android Mobile App Access'] },
+        { name: 'Vyapar Pro', price: '₹799', period: '/month', popular: true, features: ['Unlimited GST Invoices', 'Automated UPI Payment Links', 'Multi-Store Inventory', 'Priority WhatsApp Support'] },
+        { name: 'Enterprise', price: '₹2,499', period: '/month', popular: false, features: ['Multi-User Role Permissions', 'Direct GST Portal API Sync', 'Dedicated Account Manager', 'Custom ERP Integrations'] }
       ],
       faq: [
-        { question: 'How hard is it to integrate Veloce into our Kubernetes cluster?', answer: 'You can deploy via our single Helm chart in under 2 minutes.' },
-        { question: 'Is Veloce compliant with SOC2 and GDPR?', answer: 'Yes, all data in transit and at rest is AES-256 encrypted and SOC2 Type II certified.' }
+        { question: 'Is my business data secure and hosted in India?', answer: 'Yes, 100% of your data is encrypted with bank-grade AES-256 security and hosted in MeitY-approved Indian data centers.' },
+        { question: 'Can I import my existing customer and product list from Excel?', answer: 'Yes! You can upload your existing Excel or Tally sheets in 1 click or contact our team via WhatsApp for free onboarding.' }
       ]
     };
   },

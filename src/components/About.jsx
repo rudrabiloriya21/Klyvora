@@ -5,33 +5,33 @@ export default function About() {
   const pillars = [
     {
       icon: <Lightbulb size={22} className="about-pillar-icon" />,
-      title: 'Digital Innovation',
+      title: 'Zero Code Required',
       description:
-        'Transforming visionary concepts into living, responsive environments through uncompromising technical precision and artistic restraint.',
+        'Just type what your business does in simple English or Hinglish. Klyvora designs, writes copy, and builds your live website in seconds.',
     },
     {
       icon: <Cpu size={22} className="about-pillar-icon" />,
-      title: 'Creative Technology',
+      title: '1-Tap WhatsApp Commerce',
       description:
-        'Harnessing state-of-the-art web architectures to engineer high-velocity interactions that feel seamless, tangible, and natural.',
+        'Built around how Indians buy. Visitors can order products, inquire about courses, or book consultations directly through WhatsApp.',
     },
     {
       icon: <Layers size={22} className="about-pillar-icon" />,
-      title: 'Thoughtful Design',
+      title: 'Local Google Maps & Footfall',
       description:
-        'Prioritizing clarity, spatial harmony, and deep visual contrast over fleeting trends, ensuring every element serves an intentional purpose.',
+        'Help customers in your city find your exact store or clinic location with integrated Google Maps, address cards, and calling buttons.',
     },
     {
       icon: <Compass size={22} className="about-pillar-icon" />,
-      title: 'Meaningful User Experiences',
+      title: 'Natively in Indian Rupees (₹)',
       description:
-        'Crafting digital journeys that resonate emotionally and perform flawlessly across devices, screen dimensions, and interaction models.',
+        'No confusing dollar conversions. Clear ₹ pricing, course fee structures, and UPI-ready payment options built right in.',
     },
     {
       icon: <Orbit size={22} className="about-pillar-icon" />,
-      title: 'Building for the Future',
+      title: 'Fast & Lightweight on Mobile',
       description:
-        'Conceived and engineered by Xeorvia as an enduring digital benchmark—designed to evolve, adapt, and define modern standards.',
+        'Optimized for mobile devices across India on Jio and Airtel 4G/5G, ensuring your customers never wait for a page to load.',
     },
   ];
 
@@ -40,15 +40,13 @@ export default function About() {
       <div className="container">
         {/* Section Header */}
         <div className="section-header">
-          <span className="section-label">PURPOSE & ETHOS</span>
+          <span className="section-label">OUR MISSION FOR BHARAT</span>
           <h2 id="about-heading" className="section-title">
-            Engineered with Purpose. <br />
-            <span className="gradient-text">Built for What Comes Next.</span>
+            Bringing 60 Million Indian Businesses <br />
+            <span className="gradient-text">Into the Digital Economy.</span>
           </h2>
           <p className="section-desc">
-            Klyvora represents a deliberate departure from ordinary digital templates.
-            Presented by Xeorvia, it stands at the intersection of cinematic elegance and
-            uncompromising digital execution.
+            India is home to incredible artisans, bustling neighborhood shops, premier coaching teachers, and ambitious founders. Klyvora eliminates the technical and financial hurdles so any Indian business can launch a world-class website in 30 seconds.
           </p>
         </div>
 
@@ -59,33 +57,29 @@ export default function About() {
             <div className="about-manifesto-top">
               <span className="badge-pill font-mono">
                 <span className="badge-dot badge-dot-violet" />
-                THE KLYVORA PERSPECTIVE
+                THE KLYVORA MISSION
               </span>
-              <span className="manifesto-mark font-mono">01 // ETHOS</span>
+              <span className="manifesto-mark font-mono">01 // BHARAT</span>
             </div>
 
             <h3 className="about-manifesto-heading font-display">
-              A commitment to modern digital craftsmanship.
+              A digital storefront for every Indian entrepreneur.
             </h3>
 
             <p className="about-manifesto-text">
-              The modern web is crowded with template-like structures and ephemeral novelty.
-              Klyvora was conceived by Xeorvia to demonstrate what happens when creative technology
-              is guided by discipline, deliberate restraint, and architectural integrity.
+              For decades, getting a custom website required paying ₹30,000–₹50,000 to expensive agencies or struggling with complicated Western builders that charge in US dollars and lack WhatsApp integration.
             </p>
 
             <p className="about-manifesto-text">
-              Every detail—from typography scale and micro-interactions to dark-mode luminance
-              and ambient visual depth—is tuned to deliver an experience that feels confident,
-              mysterious, and distinctly premium.
+              Klyvora changes the game completely. We built an AI website architect that understands how Indian commerce actually operates—from bridal saree boutiques in Jaipur and IIT-JEE coaching centers in Kota to high-growth tech startups in Bengaluru.
             </p>
 
             <div className="about-manifesto-footer">
               <div className="manifesto-creator">
-                <span className="creator-label font-mono">CURATED BY</span>
-                <span className="creator-name">XEORVIA DIGITAL LAB</span>
+                <span className="creator-label font-mono">POWERED BY</span>
+                <span className="creator-name">KLYVORA AI LABS</span>
               </div>
-              <div className="manifesto-tag font-mono">EST. 2026</div>
+              <div className="manifesto-tag font-mono">MADE IN INDIA</div>
             </div>
           </div>
 

@@ -24,60 +24,60 @@ import { groqService } from '../../services/ai/groqService';
 
 const PRESET_PROMPTS = [
   {
-    label: 'Artisan Bakery',
-    category: 'Bakery',
+    label: 'Saree & Ethnic Shop',
+    category: 'Clothing Shop',
     style: 'warm',
     prompt:
-      'A warm, neighborhood artisan sourdough bakery and cafe with daily fresh bread drops, pastry viennoiserie, customer reviews, opening hours, and direct WhatsApp ordering.',
+      'A luxury ethnic wear and bridal saree boutique in Jaipur featuring pure Banarasi silks, festive lehengas, customer reviews, ₹ pricing, and 1-tap WhatsApp video shopping.',
   },
   {
-    label: 'Omakase Sushi',
-    category: 'Restaurant',
+    label: 'IIT-JEE & NEET Academy',
+    category: 'Coaching Institute',
     style: 'cinematic',
     prompt:
-      'An intimate Tokyo-style sushi omakase lounge featuring seasonal Toyosu fish flights, sommelier sake pairings, chef counter booking, and Michelin-inspired storytelling.',
+      'A premier IIT-JEE and NEET medical coaching institute in Kota with classroom batch schedules, scholarship test details, fee structure in ₹, and WhatsApp admission helpline.',
   },
   {
-    label: 'Cloud AI SaaS',
-    category: 'SaaS Startup',
+    label: 'Chai & Mithai Cafe',
+    category: 'Cafe',
+    style: 'warm',
+    prompt:
+      'A modern Indian artisanal chai, street snacks, and gourmet mithai cafe in Delhi with signature sweets, festival gift boxes, ₹ pricing, and WhatsApp delivery.',
+  },
+  {
+    label: 'Indian AI SaaS Startup',
+    category: 'Tech Startup',
     style: 'cinematic',
     prompt:
-      'A high-performance autonomous edge telemetry and AI workflow platform for software engineers with live pricing tiers, API benchmarks, and documentation.',
+      'An Indian B2B enterprise AI SaaS platform in Bengaluru for automated GST e-invoicing and inventory tracking with pricing plans in ₹ (INR), demo video, and client testimonials.',
   },
   {
-    label: 'Athletic Sanctuary',
-    category: 'Gym & Fitness',
+    label: 'Dental & Wellness Clinic',
+    category: 'Clinic',
     style: 'cyber',
     prompt:
-      'A modern athletic performance club with small-group conditioning, contrast therapy cold plunge bays, infrared saunas, and trial membership passes.',
+      'A modern multispeciality dental and wellness clinic in Mumbai featuring painless laser procedures, doctor qualifications, treatment costs in ₹, and instant WhatsApp booking.',
   },
   {
-    label: 'Design Agency',
-    category: 'Creative Agency',
-    style: 'minimal',
+    label: 'Kirana & Supermarket',
+    category: 'Kirana',
+    style: 'cyber',
     prompt:
-      'An avant-garde brand identity and digital product design studio showcasing signature client case studies, design philosophy, and inquiry contact form.',
-  },
-  {
-    label: 'Luxury Portfolio',
-    category: 'Portfolio',
-    style: 'cinematic',
-    prompt:
-      'A cinematic architectural photographer portfolio with full-bleed project galleries, published press credentials, client testimonials, and commission inquiries.',
+      'A neighborhood fresh organic grocery and daily kirana supermarket with free home delivery, monthly ration packs, daily discounts in ₹, and WhatsApp ordering.',
   },
 ];
 
 const CATEGORIES = [
-  { id: 'Bakery', label: 'Bakery & Cafe', icon: <Coffee size={17} /> },
-  { id: 'Restaurant', label: 'Fine Dining', icon: <Coffee size={17} /> },
-  { id: 'SaaS Startup', label: 'Tech & SaaS', icon: <Laptop size={17} /> },
-  { id: 'Creative Agency', label: 'Agency & Studio', icon: <Briefcase size={17} /> },
-  { id: 'Gym & Fitness', label: 'Fitness & Health', icon: <Dumbbell size={17} /> },
-  { id: 'Portfolio', label: 'Portfolio', icon: <Layers size={17} /> },
-  { id: 'Online Store', label: 'E-commerce', icon: <Store size={17} /> },
-  { id: 'Salon & Spa', label: 'Salon & Spa', icon: <Scissors size={17} /> },
-  { id: 'Clothing Shop', label: 'Fashion Boutique', icon: <ShoppingBag size={17} /> },
-  { id: 'Personal Brand', label: 'Personal Brand', icon: <User size={17} /> },
+  { id: 'Clothing Shop', label: 'Saree & Fashion Store', icon: <ShoppingBag size={17} /> },
+  { id: 'Coaching Institute', label: 'Coaching & School', icon: <Briefcase size={17} /> },
+  { id: 'Tech Startup', label: 'Tech & SaaS Startup', icon: <Laptop size={17} /> },
+  { id: 'Cafe', label: 'Cafe, Chai & Sweets', icon: <Coffee size={17} /> },
+  { id: 'Clinic', label: 'Clinic & Hospital', icon: <Store size={17} /> },
+  { id: 'Kirana', label: 'Kirana & Supermarket', icon: <Store size={17} /> },
+  { id: 'Restaurant', label: 'Restaurant & Dhaba', icon: <Coffee size={17} /> },
+  { id: 'Salon & Spa', label: 'Salon & Beauty Parlour', icon: <Scissors size={17} /> },
+  { id: 'Gym & Fitness', label: 'Gym & Yoga Studio', icon: <Dumbbell size={17} /> },
+  { id: 'Professional', label: 'CA, Legal & Agency', icon: <Briefcase size={17} /> },
 ];
 
 const STYLES = [
@@ -110,9 +110,9 @@ const STYLES = [
 export default function NewProjectWizard({ onProjectCreated, onCancel }) {
   const { currentUser } = useAuth();
   const [prompt, setPrompt] = useState(
-    'A warm, neighborhood artisan sourdough bakery and cafe with daily fresh bread drops, pastry viennoiserie, customer reviews, opening hours, and direct WhatsApp ordering.'
+    'A luxury ethnic wear and bridal saree boutique in Jaipur featuring pure Banarasi silks, festive lehengas, customer reviews, ₹ pricing, and 1-tap WhatsApp video shopping.'
   );
-  const [selectedCategory, setSelectedCategory] = useState('Bakery');
+  const [selectedCategory, setSelectedCategory] = useState('Clothing Shop');
   const [selectedStyle, setSelectedStyle] = useState('warm');
   const [showAdvanced, setShowAdvanced] = useState(false);
 

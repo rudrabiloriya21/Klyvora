@@ -60,17 +60,22 @@ export default function Navbar({ onLaunchStudio }) {
     >
       <div className="container nav-container">
         {/* Brand Identity */}
-        <a
-          href="#home"
-          onClick={(e) => {
-            e.preventDefault();
-            handleLinkClick('#home');
-          }}
-          className="nav-brand-link"
-          aria-label="Klyvora Home"
-        >
-          <BrandLogo size="default" />
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <a
+            href="#home"
+            onClick={(e) => {
+              e.preventDefault();
+              handleLinkClick('#home');
+            }}
+            className="nav-brand-link"
+            aria-label="Klyvora Home"
+          >
+            <BrandLogo size="default" />
+          </a>
+          <span style={{ fontSize: '11px', background: 'rgba(249, 115, 22, 0.15)', border: '1px solid rgba(249, 115, 22, 0.3)', color: '#fed7aa', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
+            🇮🇳 Bharat
+          </span>
+        </div>
 
         {/* Desktop Navigation */}
         <nav className="nav-desktop" aria-label="Main Navigation">

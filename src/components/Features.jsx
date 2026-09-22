@@ -1,53 +1,53 @@
 import React, { useState } from 'react';
-import { Palette, Activity, Gauge, Zap, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, IndianRupee, MapPin, Smartphone, CheckCircle2 } from 'lucide-react';
 
 export default function Features() {
   const [hoveredCard, setHoveredCard] = useState(null);
 
   const features = [
     {
-      id: 'modern-design',
-      icon: <Palette size={26} />,
-      tag: 'AESTHETIC',
-      title: 'Modern Design',
+      id: 'whatsapp-commerce',
+      icon: <MessageCircle size={26} />,
+      tag: 'WHATSAPP COMMERCE',
+      title: '1-Tap WhatsApp Orders & Enquiries',
       description:
-        'Sculpted with cinematic dark tones, refined geometry, and nuanced typography. An interface that commands attention through elegance rather than excess.',
-      highlights: ['Deep Obsidian Contrast', 'Balanced Glassmorphism', 'Typographic Hierarchy'],
-      color: 'var(--accent-violet)',
-      glowColor: 'rgba(139, 92, 246, 0.25)',
+        'Direct WhatsApp ordering and inquiry buttons on every section. Customers can tap once on their phone to order products, ask about admission batches, or book clinic appointments.',
+      highlights: ['1-Tap Instant Ordering', 'Pre-filled Item Inquiries', 'Zero Commission Fees'],
+      color: '#22c55e',
+      glowColor: 'rgba(34, 197, 94, 0.25)',
     },
     {
-      id: 'smooth-ux',
-      icon: <Activity size={26} />,
-      tag: 'INTERACTION',
-      title: 'Smooth User Experience',
+      id: 'rupee-upi-pricing',
+      icon: <IndianRupee size={26} />,
+      tag: 'BHARAT PRICING',
+      title: 'Indian Rupee (₹) & UPI-Ready Pricing',
       description:
-        'Tactile micro-animations, effortless spatial transitions, and zero visual friction. Every motion is purposeful, measured, and satisfying.',
-      highlights: ['Fluid 60fps Transitions', 'Spatial Micro-feedback', 'Reduced Motion Mode'],
+        'All pricing tables, institute fee tiers, and product catalogs are natively displayed in Indian Rupees (₹) with UPI and Razorpay-ready payment callouts.',
+      highlights: ['Native ₹ Rupee Formatting', 'UPI & QR Code Prompts', 'Flexible Fee & EMI Tiers'],
       color: 'var(--accent-cyan)',
       glowColor: 'rgba(6, 182, 212, 0.25)',
     },
     {
-      id: 'responsive-perf',
-      icon: <Gauge size={26} />,
-      tag: 'ARCHITECTURE',
-      title: 'Responsive Performance',
+      id: 'local-discovery',
+      icon: <MapPin size={26} />,
+      tag: 'LOCAL DISCOVERY',
+      title: 'Local Google Maps & Store Footfall',
       description:
-        'Engineered for rapid response and flawless adaptation across ultra-wide monitors, tablets, and handheld devices without sacrificing visual richness.',
-      highlights: ['Sub-second Response', 'Fluid Grid Hierarchy', 'Zero Layout Shifts'],
-      color: '#38bdf8',
-      glowColor: 'rgba(56, 189, 248, 0.25)',
+        'Turn online visitors into walk-in customers. Full address cards, business hours, and interactive map directions for local retail shops, coaching centers, and clinics.',
+      highlights: ['Google Maps Directions', 'Live Open/Closed Badge', 'Direct Call & Visit CTAs'],
+      color: 'var(--accent-violet)',
+      glowColor: 'rgba(139, 92, 246, 0.25)',
     },
     {
-      id: 'future-tech',
-      icon: <Zap size={26} />,
-      tag: 'INNOVATION',
-      title: 'Future-Focused Technology',
+      id: 'mobile-5g-speed',
+      icon: <Smartphone size={26} />,
+      tag: 'LIGHTNING SPEED',
+      title: 'Mobile-First for 5G & 4G Bharat',
       description:
-        'Built with clean, modern standards designed to scale effortlessly into tomorrow’s digital landscape. Crafted under Xeorvia’s engineering principles.',
-      highlights: ['Modern Web Standards', 'Resilient Foundation', 'Scalable Ecosystem'],
-      color: '#ec4899',
-      glowColor: 'rgba(236, 72, 153, 0.25)',
+        'Over 85% of Indian internet users browse on smartphones. Klyvora generates lightweight, high-performance websites that load instantly even on 4G networks.',
+      highlights: ['Sub-second Mobile Loading', 'Zero Lag on Jio / Airtel', 'Touch-Optimized Layouts'],
+      color: '#f59e0b',
+      glowColor: 'rgba(245, 158, 11, 0.25)',
     },
   ];
 
@@ -56,13 +56,12 @@ export default function Features() {
       <div className="container">
         {/* Section Header */}
         <div className="section-header">
-          <span className="section-label">SYSTEM CAPABILITIES</span>
+          <span className="section-label">BUILT FOR INDIAN BUSINESSES</span>
           <h2 id="features-heading" className="section-title">
-            Distinction in Every Dimension.
+            Everything You Need to Win Online in India.
           </h2>
           <p className="section-desc">
-            Four foundational pillars that define the Klyvora digital experience.
-            Conceived by Xeorvia to combine cinematic aesthetics with uncompromising usability.
+            From local retail shops and saree boutiques to premier coaching institutes and high-growth startups—Klyvora is purpose-built for how Indian customers discover, message, and buy.
           </p>
         </div>
 

@@ -27,16 +27,15 @@ export default function FinalCTA({ onEnterExperience }) {
       <div className="container final-cta-container">
         <div className="badge-pill font-mono final-cta-badge">
           <span className="badge-dot" />
-          <span>CINEMATIC LAUNCH SEQUENCE</span>
+          <span>🇮🇳 LAUNCH YOUR BUSINESS ONLINE</span>
         </div>
 
         <h2 id="cta-heading" className="final-cta-title font-display">
-          Ready to explore <span className="gradient-text">Klyvora?</span>
+          Ready to build your <span className="gradient-text">dream website?</span>
         </h2>
 
         <p className="final-cta-desc">
-          Step into a digital experience designed with purpose and engineered for what comes next.
-          Presented with pride by Xeorvia.
+          Join thousands of Indian shop owners, coaching teachers, doctors, and startup founders who launched their website in under 60 seconds. Free to start, no credit card required.
         </p>
 
         <div className="final-cta-action">
