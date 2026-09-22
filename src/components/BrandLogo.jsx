@@ -1,11 +1,11 @@
 import React from 'react';
 
-export default function BrandLogo({ size = 'default', showParent = true, isStudio = false, className = '' }) {
+export default function BrandLogo({ size = 'default', showParent = true, isStudio = false, iconOnly = false, className = '' }) {
   const isLarge = size === 'large';
   const iconSize = isLarge ? 36 : 28;
 
   return (
-    <div className={`brand-logo-wrapper ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
+    <div className={`brand-logo-wrapper ${className}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
       {/* Futuristic Geometric Nexus SVG Mark */}
       <div
         className="brand-logo-icon"
@@ -49,53 +49,55 @@ export default function BrandLogo({ size = 'default', showParent = true, isStudi
         </svg>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span
-            className="font-display"
-            style={{
-              fontSize: isLarge ? '26px' : '20px',
-              fontWeight: 800,
-              letterSpacing: '0.06em',
-              color: '#ffffff',
-              textTransform: 'uppercase',
-            }}
-          >
-            Klyvora
-          </span>
-          {isStudio && (
+      {!iconOnly && (
+        <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              className="font-display"
+              style={{
+                fontSize: isLarge ? '26px' : '20px',
+                fontWeight: 800,
+                letterSpacing: '0.06em',
+                color: '#ffffff',
+                textTransform: 'uppercase',
+              }}
+            >
+              Klyvora
+            </span>
+            {isStudio && (
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: isLarge ? '12px' : '11px',
+                  fontWeight: 700,
+                  color: 'var(--accent-cyan)',
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                }}
+              >
+                STUDIO
+              </span>
+            )}
+          </div>
+          {showParent && (
             <span
               className="font-mono"
               style={{
-                fontSize: isLarge ? '12px' : '11px',
-                fontWeight: 700,
-                color: 'var(--accent-cyan)',
-                background: 'rgba(6, 182, 212, 0.12)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                border: '1px solid rgba(6, 182, 212, 0.3)',
+                fontSize: isLarge ? '11px' : '9.5px',
+                fontWeight: 500,
+                letterSpacing: '0.14em',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                marginTop: '3px',
               }}
             >
-              STUDIO
+              by Xeorvia
             </span>
           )}
         </div>
-        {showParent && (
-          <span
-            className="font-mono"
-            style={{
-              fontSize: isLarge ? '11px' : '9.5px',
-              fontWeight: 500,
-              letterSpacing: '0.14em',
-              color: 'var(--text-muted)',
-              textTransform: 'uppercase',
-              marginTop: '3px',
-            }}
-          >
-            by Xeorvia
-          </span>
-        )}
-      </div>
+      )}
     </div>
   );
 }

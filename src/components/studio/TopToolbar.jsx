@@ -62,7 +62,7 @@ export default function TopToolbar({
 
   return (
     <header className="studio-top-toolbar" role="banner">
-      {/* 1. Left Block: Back, Logo, Project Title & Saved Status */}
+      {/* 1. Left Block: Back, Breadcrumb Logo, Project Title & Subtle Auto-save Status */}
       <div className="toolbar-left-block">
         <button
           type="button"
@@ -71,13 +71,18 @@ export default function TopToolbar({
           title="Back to Dashboard"
           aria-label="Back to Dashboard"
         >
-          <ArrowLeft size={16} />
-          <span className="back-btn-text font-sans">Dashboard</span>
+          <ArrowLeft size={14} />
+          <span className="back-btn-text">Dashboard</span>
         </button>
 
         <div className="toolbar-divider" aria-hidden="true" />
 
-        <BrandLogo size="small" isStudio={true} showParent={false} />
+        {/* Brand Mark with quick tooltip */}
+        <div className="toolbar-brand-wrap" title="Klyvora Studio">
+          <BrandLogo size="small" iconOnly={true} />
+        </div>
+
+        <span className="toolbar-breadcrumb-slash">/</span>
 
         {/* Project Name Editing */}
         {isEditingTitle ? (
@@ -89,6 +94,7 @@ export default function TopToolbar({
               onBlur={handleTitleSubmit}
               autoFocus
               className="toolbar-title-input font-sans"
+              placeholder="Website Name"
             />
           </form>
         ) : (
@@ -107,15 +113,21 @@ export default function TopToolbar({
           </div>
         )}
 
-        <span className="toolbar-save-badge font-sans">
-          <span className="save-dot-live" />
-          <span>{saveStatus === 'Saving...' ? 'Saving...' : 'All changes saved'}</span>
-        </span>
+        {/* Subtle live save indicator */}
+        <div
+          className="toolbar-save-status"
+          title={saveStatus === 'Saving...' ? 'Saving changes...' : 'All changes saved locally'}
+        >
+          <span className={`save-dot-live ${saveStatus === 'Saving...' ? 'saving' : ''}`} />
+          <span className="save-status-text font-mono">
+            {saveStatus === 'Saving...' ? 'Saving' : 'Saved'}
+          </span>
+        </div>
 
         <div className="toolbar-divider" aria-hidden="true" />
 
         {/* Undo / Redo */}
-        <div className="toolbar-btn-group">
+        <div className="toolbar-undo-group">
           <button
             type="button"
             disabled={!canUndo}
@@ -124,7 +136,7 @@ export default function TopToolbar({
             title="Undo (Ctrl+Z)"
             aria-label="Undo"
           >
-            <Undo2 size={15} />
+            <Undo2 size={14} />
           </button>
           <button
             type="button"
@@ -134,12 +146,12 @@ export default function TopToolbar({
             title="Redo (Ctrl+Y)"
             aria-label="Redo"
           >
-            <Redo2 size={15} />
+            <Redo2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* 2. Center Block: Responsive Device Switcher */}
+      {/* 2. Center Block: Perfectly Centered Responsive Device Switcher */}
       <div className="toolbar-center-block">
         <div className="toolbar-device-segmented" role="radiogroup" aria-label="Device Viewport">
           <button
@@ -148,7 +160,7 @@ export default function TopToolbar({
             aria-checked={device === 'desktop'}
             onClick={() => onSetDevice('desktop')}
             className={`segmented-device-btn ${device === 'desktop' ? 'active' : ''}`}
-            title="Desktop View"
+            title="Desktop View (100% Canvas)"
           >
             <Monitor size={14} />
             <span>Desktop</span>
@@ -159,7 +171,7 @@ export default function TopToolbar({
             aria-checked={device === 'mobile'}
             onClick={() => onSetDevice('mobile')}
             className={`segmented-device-btn ${device === 'mobile' ? 'active' : ''}`}
-            title="Mobile View"
+            title="Mobile View (390px Canvas)"
           >
             <Smartphone size={14} />
             <span>Mobile</span>
@@ -167,115 +179,125 @@ export default function TopToolbar({
         </div>
       </div>
 
-      {/* 3. Right Block: Color Palette, Sidebar Toggle, Preview, Export, Publish, Settings */}
+      {/* 3. Right Block: Grouped Design Tools, Preview, Export, Publish, Settings */}
       <div className="toolbar-right-block">
-        {/* Quick Color Palette Trigger */}
-        <div className="toolbar-palette-wrap">
+        {/* Design Tools Cluster: Colors & Sections */}
+        <div className="toolbar-action-group">
+          {/* Quick Color Palette Trigger */}
+          <div className="toolbar-palette-wrap">
+            <button
+              type="button"
+              onClick={() => setPaletteDropdownOpen(!paletteDropdownOpen)}
+              className={`toolbar-btn-item ${paletteDropdownOpen ? 'active' : ''}`}
+              title="Customize Theme Colors"
+            >
+              <Palette size={14} className="text-cyan" />
+              <span>Colors</span>
+              <div
+                className="current-color-dot"
+                style={{ backgroundColor: project.theme?.primaryColor || '#06b6d4' }}
+              />
+            </button>
+
+            {paletteDropdownOpen && (
+              <div className="toolbar-palette-menu glass-card">
+                <div className="palette-menu-title font-sans">SELECT THEME PALETTE</div>
+                <div className="palette-options-grid">
+                  {THEME_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        if (onUpdateTheme) {
+                          onUpdateTheme({
+                            primaryColor: preset.primary,
+                            secondaryColor: preset.secondary,
+                            bgColor: preset.bg,
+                          });
+                        }
+                        setPaletteDropdownOpen(false);
+                      }}
+                      className="palette-option-card"
+                    >
+                      <div className="palette-swatches">
+                        <span style={{ backgroundColor: preset.primary }} />
+                        <span style={{ backgroundColor: preset.secondary }} />
+                        <span style={{ backgroundColor: preset.bg }} />
+                      </div>
+                      <span className="palette-name">{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar Structure Toggle */}
           <button
             type="button"
-            onClick={() => setPaletteDropdownOpen(!paletteDropdownOpen)}
-            className="toolbar-palette-btn font-sans"
-            title="Quick Theme Colors"
+            onClick={onToggleSidebar}
+            className={`toolbar-btn-item ${showSidebar ? 'active' : ''}`}
+            title="Toggle Sections & Structure Panel"
           >
-            <Palette size={14} className="text-cyan" />
-            <span>Colors</span>
-            <div
-              className="current-color-dot"
-              style={{ backgroundColor: project.theme?.primaryColor || '#06b6d4' }}
-            />
+            <Layers size={14} />
+            <span>Sections</span>
           </button>
-
-          {paletteDropdownOpen && (
-            <div className="toolbar-palette-menu glass-card">
-              <div className="palette-menu-title font-sans">SELECT THEME PALETTE</div>
-              <div className="palette-options-grid">
-                {THEME_PRESETS.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => {
-                      if (onUpdateTheme) {
-                        onUpdateTheme({
-                          primaryColor: preset.primary,
-                          secondaryColor: preset.secondary,
-                          bgColor: preset.bg,
-                        });
-                      }
-                      setPaletteDropdownOpen(false);
-                    }}
-                    className="palette-option-card"
-                  >
-                    <div className="palette-swatches">
-                      <span style={{ backgroundColor: preset.primary }} />
-                      <span style={{ backgroundColor: preset.secondary }} />
-                      <span style={{ backgroundColor: preset.bg }} />
-                    </div>
-                    <span className="palette-name">{preset.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Sidebar Structure Toggle (Sections & Pages) */}
-        <button
-          type="button"
-          onClick={onToggleSidebar}
-          className={`toolbar-action-pill font-sans ${showSidebar ? 'btn-pill-active' : ''}`}
-          title="Toggle Sections & Page Layout"
-        >
-          <Layers size={14} />
-          <span>{showSidebar ? 'Hide Structure' : 'Sections'}</span>
-        </button>
+        <div className="toolbar-divider" aria-hidden="true" />
 
-        {/* Live Preview Toggle */}
-        <button
-          type="button"
-          onClick={onTogglePreviewMode}
-          className={`btn btn-secondary toolbar-action-pill font-sans ${
-            previewMode ? 'btn-preview-active' : ''
-          }`}
-          title="Toggle Clean Preview"
-        >
-          {previewMode ? <EyeOff size={14} /> : <Eye size={14} />}
-          <span>{previewMode ? 'Exit Preview' : 'Preview'}</span>
-        </button>
+        {/* View & Export Cluster */}
+        <div className="toolbar-action-group">
+          {/* Clean Live Preview Toggle */}
+          <button
+            type="button"
+            onClick={onTogglePreviewMode}
+            className={`toolbar-btn-item ${previewMode ? 'active-preview' : ''}`}
+            title="Toggle Clean Preview Mode"
+          >
+            {previewMode ? <EyeOff size={14} /> : <Eye size={14} />}
+            <span>{previewMode ? 'Exit Preview' : 'Preview'}</span>
+          </button>
 
-        {/* Export Modal Button */}
-        <button
-          type="button"
-          onClick={onOpenExport}
-          className="toolbar-icon-btn"
-          title="Download Website (ZIP)"
-          aria-label="Download Website"
-        >
-          <Download size={15} />
-        </button>
+          {/* Export ZIP Button */}
+          <button
+            type="button"
+            onClick={onOpenExport}
+            className="toolbar-icon-btn"
+            title="Download Clean Website (HTML/CSS/JS ZIP)"
+            aria-label="Download Website ZIP"
+          >
+            <Download size={15} />
+          </button>
+        </div>
 
-        {/* Primary Publish Button */}
+        {/* Primary Publish Action */}
         <button
           type="button"
           onClick={onOpenPublish}
-          className="btn btn-primary toolbar-publish-btn font-sans"
+          className="toolbar-publish-btn font-sans"
+          title="Publish to Live Web"
         >
           <Globe size={14} />
           <span>Publish</span>
         </button>
 
-        {/* Settings Button */}
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="toolbar-icon-btn"
-          title="Website Settings"
-          aria-label="Settings"
-        >
-          <Settings size={15} />
-        </button>
+        <div className="toolbar-divider" aria-hidden="true" />
 
-        {/* User Account Menu */}
-        <UserMenuDropdown onNavigate={(h) => (window.location.hash = h)} />
+        {/* System & Profile Cluster */}
+        <div className="toolbar-system-group">
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="toolbar-icon-btn"
+            title="Website Settings & SEO"
+            aria-label="Settings"
+          >
+            <Settings size={15} />
+          </button>
+
+          <UserMenuDropdown onNavigate={(h) => (window.location.hash = h)} />
+        </div>
       </div>
     </header>
   );
