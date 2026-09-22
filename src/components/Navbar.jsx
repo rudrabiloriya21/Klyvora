@@ -70,11 +70,8 @@ export default function Navbar({ onLaunchStudio }) {
             className="nav-brand-link"
             aria-label="Klyvora Home"
           >
-            <BrandLogo size="default" />
+            <BrandLogo size="default" isStudio={true} />
           </a>
-          <span style={{ fontSize: '11px', background: 'rgba(249, 115, 22, 0.15)', border: '1px solid rgba(249, 115, 22, 0.3)', color: '#fed7aa', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>
-            🇮🇳 Bharat
-          </span>
         </div>
 
         {/* Desktop Navigation */}
