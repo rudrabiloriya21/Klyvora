@@ -11,11 +11,14 @@ import {
   Sparkles,
   Star,
   ShieldCheck,
+  Menu,
+  X,
 } from 'lucide-react';
 import { storageService } from '../../services/storageService';
 
 export default function LiveWebsiteRenderer({
   project,
+  device = 'desktop',
   selectedSectionId,
   onSelectSection,
   onMoveSectionUp,
@@ -376,7 +379,13 @@ export default function LiveWebsiteRenderer({
 
   return (
     <div
-      className="rendered-site-root"
+      className={`rendered-site-root ${
+        device === 'mobile'
+          ? 'is-device-mobile'
+          : device === 'tablet'
+          ? 'is-device-tablet'
+          : 'is-device-desktop'
+      }`}
       style={{
         '--site-primary': theme.primaryColor || '#8b5cf6',
         '--site-secondary': theme.secondaryColor || '#06b6d4',
@@ -597,7 +606,7 @@ export default function LiveWebsiteRenderer({
 
             {/* 2. Navigation */}
             {section.type === 'navigation' && (
-              <header className={`preview-navbar ${p.sticky ? 'is-sticky' : ''}`}>
+              <header className={`preview-navbar ${p.sticky ? 'is-sticky' : ''} ${device === 'mobile' ? 'is-mobile-nav' : ''}`}>
                 <div className="preview-container nav-inner">
                   <a
                     href="#home"
@@ -608,32 +617,36 @@ export default function LiveWebsiteRenderer({
                     <span>{p.logoText || brand.businessName || 'Brand'}</span>
                   </a>
 
-                  <nav className="desktop-links" aria-label="Main navigation">
-                    {(p.links || []).map((link, i) => {
-                      const isActiveLink =
-                        (link.label?.toLowerCase() === activePageSlug) ||
-                        (link.label?.toLowerCase() === 'home' && activePageSlug === 'home');
-                      return (
-                        <a
-                          key={i}
-                          href={link.url || '#'}
-                          className={`nav-item-link ${isActiveLink ? 'is-active-link' : ''}`}
-                          style={
-                            isActiveLink
-                              ? { color: 'var(--site-primary)', fontWeight: 600 }
-                              : {}
-                          }
-                          onClick={(e) =>
-                            handleLinkAction(e, { url: link.url, label: link.label })
-                          }
-                        >
-                          {link.label}
-                        </a>
-                      );
-                    })}
-                  </nav>
+                  {/* Desktop Links (Hidden on Mobile Device Frame) */}
+                  {device !== 'mobile' && (
+                    <nav className="desktop-links" aria-label="Main navigation">
+                      {(p.links || []).map((link, i) => {
+                        const isActiveLink =
+                          (link.label?.toLowerCase() === activePageSlug) ||
+                          (link.label?.toLowerCase() === 'home' && activePageSlug === 'home');
+                        return (
+                          <a
+                            key={i}
+                            href={link.url || '#'}
+                            className={`nav-item-link ${isActiveLink ? 'is-active-link' : ''}`}
+                            style={
+                              isActiveLink
+                                ? { color: 'var(--site-primary)', fontWeight: 600 }
+                                : {}
+                            }
+                            onClick={(e) =>
+                              handleLinkAction(e, { url: link.url, label: link.label })
+                            }
+                          >
+                            {link.label}
+                          </a>
+                        );
+                      })}
+                    </nav>
+                  )}
 
-                  {p.ctaText && (
+                  {/* Desktop Nav CTA Button */}
+                  {device !== 'mobile' && p.ctaText && (
                     <a
                       href={p.ctaUrl || '#contact'}
                       className="preview-btn btn-brand nav-cta-btn"
@@ -645,14 +658,42 @@ export default function LiveWebsiteRenderer({
                     </a>
                   )}
 
-                  <button
-                    type="button"
-                    className="mobile-hamburger"
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    aria-label="Toggle Menu"
-                  >
-                    &#9776;
-                  </button>
+                  {/* Mobile View Controls */}
+                  {device === 'mobile' && (
+                    <div className="mobile-nav-controls">
+                      {p.ctaText && (
+                        <a
+                          href={p.ctaUrl || '#contact'}
+                          className="preview-btn btn-brand mobile-nav-compact-cta"
+                          onClick={(e) =>
+                            handleLinkAction(e, { url: p.ctaUrl, label: p.ctaText })
+                          }
+                        >
+                          {p.ctaText}
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className="mobile-hamburger-btn"
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        aria-label="Toggle Navigation Menu"
+                      >
+                        {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Responsive Hamburger fallback */}
+                  {device !== 'mobile' && (
+                    <button
+                      type="button"
+                      className="mobile-hamburger"
+                      onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                      aria-label="Toggle Menu"
+                    >
+                      {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                    </button>
+                  )}
                 </div>
 
                 {mobileMenuOpen && (
@@ -674,7 +715,7 @@ export default function LiveWebsiteRenderer({
                       <a
                         href={p.ctaUrl || '#contact'}
                         className="preview-btn btn-brand"
-                        style={{ marginTop: '12px', textAlign: 'center' }}
+                        style={{ marginTop: '12px', textAlign: 'center', width: '100%', justifyContent: 'center' }}
                         onClick={(e) => {
                           setMobileMenuOpen(false);
                           handleLinkAction(e, { url: p.ctaUrl, label: p.ctaText });

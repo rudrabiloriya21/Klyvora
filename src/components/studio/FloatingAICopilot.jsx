@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, X, Palette, Star, MessageCircle, DollarSign, HelpCircle, Check, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowRight, X, ChevronDown, ChevronUp, Check, Loader2 } from 'lucide-react';
 import { groqService } from '../../services/ai/groqService';
 import { getModelById } from '../../services/ai/modelRegistry';
 
@@ -22,6 +22,7 @@ export default function FloatingAICopilot({
   const [prompt, setPrompt] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [isMinimized, setIsMinimized] = useState(false);
 
   if (previewMode) return null;
 
@@ -72,6 +73,41 @@ export default function FloatingAICopilot({
       setIsProcessing(false);
     }
   };
+
+  // Minimized Sleek Trigger Pill
+  if (isMinimized) {
+    return (
+      <div className="floating-ai-copilot-container is-minimized" role="region" aria-label="AI Website Assistant">
+        <button
+          type="button"
+          onClick={() => setIsMinimized(false)}
+          className="copilot-minimized-trigger glass-card font-sans"
+          aria-label="Expand AI Copilot"
+          title="Click to expand AI Copilot assistant"
+        >
+          <Sparkles size={14} className="copilot-sparkle-icon text-cyan" />
+          <span className="copilot-minimized-label">AI Copilot</span>
+          {targetedSection && (
+            <span className="copilot-minimized-badge">
+              {targetedSection.name || targetedSection.type}
+            </span>
+          )}
+          <ChevronUp size={14} className="copilot-chevron-icon" />
+        </button>
+
+        {statusMessage && (
+          <div className="copilot-status-toast glass-card font-sans">
+            {isProcessing ? (
+              <Loader2 size={13} className="copilot-spinner text-cyan" />
+            ) : (
+              <Check size={13} className="text-emerald" />
+            )}
+            <span>{statusMessage}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="floating-ai-copilot-container" role="region" aria-label="AI Website Assistant">
@@ -148,6 +184,17 @@ export default function FloatingAICopilot({
               <ArrowRight size={14} />
             </>
           )}
+        </button>
+
+        {/* Minimize Button */}
+        <button
+          type="button"
+          onClick={() => setIsMinimized(true)}
+          className="copilot-minimize-btn"
+          title="Minimize AI Copilot to see full website"
+          aria-label="Minimize AI Copilot"
+        >
+          <ChevronDown size={15} />
         </button>
       </div>
 

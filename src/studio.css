@@ -1673,7 +1673,7 @@
   height: 100%;
   overflow-y: auto !important;
   overflow-x: hidden;
-  padding: 24px 30px;
+  padding: 24px 30px 140px 30px;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -2751,6 +2751,261 @@
 
 .presented-line {
   font-size: 11px;
+}
+
+/* ==============================================================================
+   6.5 SCOPED MOBILE DEVICE FRAME STYLES (.is-device-mobile)
+   Ensures simulated 390px phone frames render pixel-perfect without element bleed
+   ============================================================================== */
+
+.rendered-site-root.is-device-mobile {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-container {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Navbar in Mobile Frame */
+.rendered-site-root.is-device-mobile .preview-navbar {
+  height: 56px !important;
+  padding: 0 !important;
+}
+
+.rendered-site-root.is-device-mobile .nav-inner {
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
+.rendered-site-root.is-device-mobile .nav-brand-title {
+  font-size: 15px !important;
+  gap: 6px !important;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rendered-site-root.is-device-mobile .mobile-nav-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.rendered-site-root.is-device-mobile .mobile-nav-compact-cta {
+  padding: 5px 11px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.rendered-site-root.is-device-mobile .mobile-hamburger-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.rendered-site-root.is-device-mobile .mobile-hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-mobile-menu {
+  position: absolute !important;
+  top: 56px !important;
+  left: 0 !important;
+  right: 0 !important;
+  background: var(--site-surface, #0c0e15) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.6) !important;
+  z-index: 50 !important;
+  padding: 16px 20px !important;
+  gap: 4px !important;
+}
+
+.rendered-site-root.is-device-mobile .mobile-link {
+  font-size: 14px !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Announcement Bar in Mobile */
+.rendered-site-root.is-device-mobile .preview-announcement-bar {
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+}
+
+.rendered-site-root.is-device-mobile .announcement-inner {
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  text-align: center !important;
+}
+
+/* Hero Section in Mobile Frame */
+.rendered-site-root.is-device-mobile .preview-hero-section {
+  min-height: auto !important;
+  padding: 36px 0 32px 0 !important;
+  text-align: center !important;
+}
+
+.rendered-site-root.is-device-mobile .hero-split-grid.with-visual {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important;
+  text-align: center !important;
+}
+
+.rendered-site-root.is-device-mobile .hero-text-content {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-hero-heading {
+  font-size: clamp(1.65rem, 5.5vw, 2.15rem) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.015em !important;
+  margin-bottom: 14px !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-hero-sub {
+  font-size: 13.5px !important;
+  line-height: 1.55 !important;
+  margin-bottom: 22px !important;
+  max-width: 100% !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-hero-actions {
+  flex-direction: column !important;
+  width: 100% !important;
+  gap: 10px !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-hero-actions .preview-btn {
+  width: 100% !important;
+  justify-content: center !important;
+  padding: 12px 18px !important;
+  font-size: 13.5px !important;
+}
+
+.rendered-site-root.is-device-mobile .hero-visual-col {
+  width: 100% !important;
+}
+
+.rendered-site-root.is-device-mobile .hero-image-card {
+  max-width: 100% !important;
+  border-radius: 16px !important;
+}
+
+.rendered-site-root.is-device-mobile .hero-main-img {
+  height: 210px !important;
+}
+
+.rendered-site-root.is-device-mobile .hero-trust-bar {
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-top: 18px !important;
+  padding-top: 14px !important;
+}
+
+.rendered-site-root.is-device-mobile .hero-trust-divider {
+  display: none !important;
+}
+
+/* Sections & Grids in Mobile Frame */
+.rendered-site-root.is-device-mobile .preview-section {
+  padding: 40px 0 !important;
+}
+
+.rendered-site-root.is-device-mobile .section-headline {
+  font-size: 1.65rem !important;
+  line-height: 1.22 !important;
+  margin-bottom: 8px !important;
+  word-break: break-word !important;
+}
+
+.rendered-site-root.is-device-mobile .section-subheadline {
+  font-size: 13px !important;
+  margin-bottom: 24px !important;
+  line-height: 1.5 !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-cards-grid {
+  grid-template-columns: 1fr !important;
+  gap: 14px !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-about-grid {
+  grid-template-columns: 1fr !important;
+  gap: 18px !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-contact-layout {
+  grid-template-columns: 1fr !important;
+  gap: 20px !important;
+}
+
+.rendered-site-root.is-device-mobile .product-image-container {
+  height: 180px !important;
+}
+
+.rendered-site-root.is-device-mobile .product-box-body {
+  padding: 16px !important;
+}
+
+.rendered-site-root.is-device-mobile .testimonial-box {
+  padding: 18px !important;
+}
+
+.rendered-site-root.is-device-mobile .plan-box {
+  padding: 22px 18px !important;
+}
+
+.rendered-site-root.is-device-mobile .plan-number {
+  font-size: 2.2rem !important;
+}
+
+.rendered-site-root.is-device-mobile .preview-site-footer {
+  padding: 34px 0 20px 0 !important;
+}
+
+.rendered-site-root.is-device-mobile .footer-top-row {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 16px !important;
+  margin-bottom: 22px !important;
+}
+
+.rendered-site-root.is-device-mobile .footer-links-wrap {
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.rendered-site-root.is-device-mobile .footer-bottom-row {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
 }
 
 /* ==============================================================================
@@ -6559,6 +6814,76 @@
 
 .copilot-spinner {
   animation: spin 1s linear infinite;
+}
+
+.floating-ai-copilot-container.is-minimized {
+  pointer-events: auto;
+  bottom: 20px;
+}
+
+.copilot-minimized-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  background: rgba(10, 13, 22, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 18px rgba(6, 182, 212, 0.25);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.copilot-minimized-trigger:hover {
+  transform: translateY(-2px);
+  border-color: rgba(6, 182, 212, 0.8);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.8), 0 0 26px rgba(6, 182, 212, 0.45);
+}
+
+.copilot-minimized-label {
+  color: #f1f5f9;
+}
+
+.copilot-minimized-badge {
+  background: rgba(6, 182, 212, 0.18);
+  color: #67e8f9;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 10.5px;
+}
+
+.copilot-chevron-icon {
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.copilot-minimized-trigger:hover .copilot-chevron-icon {
+  color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.copilot-minimize-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.copilot-minimize-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* 3. Top Toolbar Elements */

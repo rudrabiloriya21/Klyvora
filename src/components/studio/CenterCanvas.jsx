@@ -28,6 +28,8 @@ export default function CenterCanvas({
           borderRadius: '40px',
           border: '10px solid #141720',
           boxShadow: '0 25px 60px -10px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.08)',
+          overflow: 'hidden',
+          position: 'relative',
         };
       case 'tablet':
         return {
@@ -36,6 +38,8 @@ export default function CenterCanvas({
           borderRadius: '28px',
           border: '12px solid #141720',
           boxShadow: '0 25px 60px -10px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.08)',
+          overflow: 'hidden',
+          position: 'relative',
         };
       default: // desktop
         return {
@@ -45,6 +49,8 @@ export default function CenterCanvas({
           borderRadius: '12px',
           border: '1px solid rgba(255,255,255,0.06)',
           boxShadow: '0 20px 60px -10px rgba(0,0,0,0.7)',
+          overflow: 'hidden',
+          position: 'relative',
         };
     }
   };
@@ -115,6 +121,7 @@ export default function CenterCanvas({
             {/* Live Website Component */}
             <LiveWebsiteRenderer
               project={project}
+              device={device}
               activePageSlug={activePageSlug}
               onNavigatePage={onNavigatePage}
               selectedSectionId={selectedSectionId}
