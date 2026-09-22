@@ -323,16 +323,16 @@ export default function LeftAIAssistantPanel({
 
   return (
     <div className="left-ai-assistant-panel font-sans" role="region" aria-label="AI Website Assistant">
-      {/* Top Telemetry Header */}
+      {/* Top Friendly Header */}
       <div className="left-ai-header">
         <div className="left-ai-model-status">
           <div className="left-ai-pulse-dot" aria-hidden="true" />
           <div className="left-ai-model-info">
-            <div className="left-ai-badge font-mono" title="System Architect 1.2 Neo">
-              <Zap size={13} className="text-cyan fill-cyan" />
-              <span className="left-ai-title font-display">AI WORKSPACE</span>
+            <div className="left-ai-badge font-sans">
+              <Sparkles size={14} className="text-cyan" />
+              <span className="left-ai-title font-sans">AI Design Copilot</span>
             </div>
-            <span className="left-ai-sub font-mono">SYSTEM ARCHITECT 1.2 NEO</span>
+            <span className="left-ai-sub font-sans">Ready to customize your site</span>
           </div>
         </div>
 

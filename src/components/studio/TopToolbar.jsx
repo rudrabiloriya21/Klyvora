@@ -1,24 +1,32 @@
 import React, { useState } from 'react';
 import {
   Monitor,
-  Tablet,
   Smartphone,
   Undo2,
   Redo2,
   Sparkles,
-  SlidersHorizontal,
-  Code2,
   Download,
   Globe,
   Settings,
   ArrowLeft,
   Check,
-  ChevronDown,
-  PanelRightClose,
+  Palette,
+  Eye,
+  EyeOff,
+  Layers,
+  Edit2,
 } from 'lucide-react';
 import BrandLogo from '../BrandLogo';
-import { XEORVIA_MODELS } from '../../services/ai/modelRegistry';
 import UserMenuDropdown from '../auth/UserMenuDropdown';
+
+const THEME_PRESETS = [
+  { id: 'obsidian', name: 'Obsidian Cyan', primary: '#06b6d4', secondary: '#8b5cf6', bg: '#07080c' },
+  { id: 'warm', name: 'Artisan Warmth', primary: '#f59e0b', secondary: '#d97706', bg: '#0c0a09' },
+  { id: 'emerald', name: 'Emerald Forest', primary: '#10b981', secondary: '#06b6d4', bg: '#061a14' },
+  { id: 'violet', name: 'Ultra Violet', primary: '#8b5cf6', secondary: '#ec4899', bg: '#0d0b18' },
+  { id: 'crimson', name: 'Crimson Luxe', primary: '#f43f5e', secondary: '#fb7185', bg: '#14090d' },
+  { id: 'minimal', name: 'Pure Minimal', primary: '#e2e8f0', secondary: '#38bdf8', bg: '#090a0f' },
+];
 
 export default function TopToolbar({
   project,
@@ -29,15 +37,11 @@ export default function TopToolbar({
   onRedo,
   device,
   onSetDevice,
-  selectedModel,
-  onSelectModel,
-  workspaceMode = 'ai',
-  onToggleWorkspaceMode,
-  showInspector = false,
-  onToggleInspector,
+  showSidebar,
+  onToggleSidebar,
+  onUpdateTheme,
   previewMode,
   onTogglePreviewMode,
-  onOpenCodeViewer,
   onOpenExport,
   onOpenPublish,
   onOpenSettings,
@@ -46,7 +50,7 @@ export default function TopToolbar({
 }) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(project.metadata?.name || '');
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [paletteDropdownOpen, setPaletteDropdownOpen] = useState(false);
 
   const handleTitleSubmit = (e) => {
     e.preventDefault();
@@ -58,7 +62,7 @@ export default function TopToolbar({
 
   return (
     <header className="studio-top-toolbar" role="banner">
-      {/* 1. Left Block: Navigation, Brand, Project Title & Undo/Redo */}
+      {/* 1. Left Block: Back, Logo, Project Title & Saved Status */}
       <div className="toolbar-left-block">
         <button
           type="button"
@@ -67,12 +71,13 @@ export default function TopToolbar({
           title="Back to Dashboard"
           aria-label="Back to Dashboard"
         >
-          <ArrowLeft size={17} />
+          <ArrowLeft size={16} />
+          <span className="back-btn-text font-sans">Dashboard</span>
         </button>
 
-        <BrandLogo size="default" isStudio={true} showParent={false} />
-
         <div className="toolbar-divider" aria-hidden="true" />
+
+        <BrandLogo size="small" isStudio={true} showParent={false} />
 
         {/* Project Name Editing */}
         {isEditingTitle ? (
@@ -83,7 +88,7 @@ export default function TopToolbar({
               onChange={(e) => setTitleInput(e.target.value)}
               onBlur={handleTitleSubmit}
               autoFocus
-              className="toolbar-title-input font-display"
+              className="toolbar-title-input font-sans"
             />
           </form>
         ) : (
@@ -93,21 +98,23 @@ export default function TopToolbar({
               setTitleInput(project.metadata?.name || '');
               setIsEditingTitle(true);
             }}
-            title={`Rename: ${project.metadata?.name || 'Untitled Experience'}`}
+            title="Click to rename website"
           >
-            <span className="toolbar-project-name font-display">
-              {project.metadata?.name || 'Untitled Experience'}
+            <span className="toolbar-project-name font-sans">
+              {project.metadata?.name || 'My Website'}
             </span>
-            <span className="toolbar-save-badge font-mono">
-              <Check size={11} className="save-check" />
-              <span>{saveStatus}</span>
-            </span>
+            <Edit2 size={12} className="rename-icon" />
           </div>
         )}
 
+        <span className="toolbar-save-badge font-sans">
+          <span className="save-dot-live" />
+          <span>{saveStatus === 'Saving...' ? 'Saving...' : 'All changes saved'}</span>
+        </span>
+
         <div className="toolbar-divider" aria-hidden="true" />
 
-        {/* Undo / Redo Buttons */}
+        {/* Undo / Redo */}
         <div className="toolbar-btn-group">
           <button
             type="button"
@@ -132,177 +139,125 @@ export default function TopToolbar({
         </div>
       </div>
 
-      {/* 2. Center Block: Primary Mode Switcher & Device Viewports */}
+      {/* 2. Center Block: Responsive Device Switcher */}
       <div className="toolbar-center-block">
-        {/* AI Workspace vs Manual Mode Switcher Pill */}
-        <div className="toolbar-mode-switcher font-mono" role="radiogroup" aria-label="Editor Mode">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={workspaceMode === 'ai'}
-            onClick={() => workspaceMode !== 'ai' && onToggleWorkspaceMode && onToggleWorkspaceMode()}
-            className={`toolbar-mode-btn ${workspaceMode === 'ai' ? 'active' : ''}`}
-            title="AI Workspace Mode: natural language prompt and instant generation"
-          >
-            <Sparkles size={12} className="text-cyan" />
-            <span>AI Workspace</span>
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={workspaceMode === 'manual'}
-            onClick={() => workspaceMode !== 'manual' && onToggleWorkspaceMode && onToggleWorkspaceMode()}
-            className={`toolbar-mode-btn ${workspaceMode === 'manual' ? 'active' : ''}`}
-            title="Manual Tools Mode: fine tune sections, themes, SEO, and pages"
-          >
-            <SlidersHorizontal size={12} />
-            <span>Manual</span>
-          </button>
-        </div>
-
-        <div className="toolbar-divider" aria-hidden="true" />
-
-        {/* Responsive Device Switchers */}
-        <div className="toolbar-device-switchers" role="radiogroup" aria-label="Device Viewport">
+        <div className="toolbar-device-segmented" role="radiogroup" aria-label="Device Viewport">
           <button
             type="button"
             role="radio"
             aria-checked={device === 'desktop'}
             onClick={() => onSetDevice('desktop')}
-            className={`device-btn ${device === 'desktop' ? 'active' : ''}`}
-            title="Desktop Workstation (1280px)"
+            className={`segmented-device-btn ${device === 'desktop' ? 'active' : ''}`}
+            title="Desktop View"
           >
-            <Monitor size={15} />
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={device === 'tablet'}
-            onClick={() => onSetDevice('tablet')}
-            className={`device-btn ${device === 'tablet' ? 'active' : ''}`}
-            title="Tablet Viewport (768px)"
-          >
-            <Tablet size={15} />
+            <Monitor size={14} />
+            <span>Desktop</span>
           </button>
           <button
             type="button"
             role="radio"
             aria-checked={device === 'mobile'}
             onClick={() => onSetDevice('mobile')}
-            className={`device-btn ${device === 'mobile' ? 'active' : ''}`}
-            title="Mobile Handheld (375px)"
+            className={`segmented-device-btn ${device === 'mobile' ? 'active' : ''}`}
+            title="Mobile View"
           >
-            <Smartphone size={15} />
+            <Smartphone size={14} />
+            <span>Mobile</span>
           </button>
         </div>
       </div>
 
-      {/* 3. Right Block: Model Selector, Preview, Inspector, Code, Export, Publish, Profile */}
+      {/* 3. Right Block: Color Palette, Sidebar Toggle, Preview, Export, Publish, Settings */}
       <div className="toolbar-right-block">
-        {/* Xeorvia Model Selector */}
-        <div className="toolbar-model-selector-wrap">
+        {/* Quick Color Palette Trigger */}
+        <div className="toolbar-palette-wrap">
           <button
             type="button"
-            onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-            className="toolbar-model-dropdown-trigger font-mono"
-            aria-haspopup="listbox"
-            aria-expanded={modelDropdownOpen}
-            title={`Active Model: ${selectedModel.name}`}
+            onClick={() => setPaletteDropdownOpen(!paletteDropdownOpen)}
+            className="toolbar-palette-btn font-sans"
+            title="Quick Theme Colors"
           >
-            <span className="model-dot" />
-            <span className="model-name-text">
-              {selectedModel?.name ? selectedModel.name.replace('System ', '') : 'Architect 1.2 Neo'}
-            </span>
-            <ChevronDown size={13} className="dropdown-arrow" />
+            <Palette size={14} className="text-cyan" />
+            <span>Colors</span>
+            <div
+              className="current-color-dot"
+              style={{ backgroundColor: project.theme?.primaryColor || '#06b6d4' }}
+            />
           </button>
 
-          {modelDropdownOpen && (
-            <div className="toolbar-model-menu glass-card">
-              <div className="model-menu-header font-mono">
-                <span>XEORVIA PRODUCT MODEL SYSTEM</span>
+          {paletteDropdownOpen && (
+            <div className="toolbar-palette-menu glass-card">
+              <div className="palette-menu-title font-sans">SELECT THEME PALETTE</div>
+              <div className="palette-options-grid">
+                {THEME_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      if (onUpdateTheme) {
+                        onUpdateTheme({
+                          primaryColor: preset.primary,
+                          secondaryColor: preset.secondary,
+                          bgColor: preset.bg,
+                        });
+                      }
+                      setPaletteDropdownOpen(false);
+                    }}
+                    className="palette-option-card"
+                  >
+                    <div className="palette-swatches">
+                      <span style={{ backgroundColor: preset.primary }} />
+                      <span style={{ backgroundColor: preset.secondary }} />
+                      <span style={{ backgroundColor: preset.bg }} />
+                    </div>
+                    <span className="palette-name">{preset.name}</span>
+                  </button>
+                ))}
               </div>
-              {XEORVIA_MODELS.map((model) => (
-                <div
-                  key={model.id}
-                  onClick={() => {
-                    onSelectModel(model);
-                    setModelDropdownOpen(false);
-                  }}
-                  className={`model-option-item ${
-                    selectedModel.id === model.id ? 'active-model' : ''
-                  }`}
-                >
-                  <div className="model-option-top">
-                    <span className="model-opt-name font-display">{model.name}</span>
-                    {model.recommended && (
-                      <span className="badge-rec font-mono">RECOMMENDED</span>
-                    )}
-                  </div>
-                  <p className="model-opt-desc">{model.description}</p>
-                  <div className="model-opt-meta font-mono">
-                    <span>CAPABILITY: {model.capabilityLevel}</span>
-                    <span>CONTEXT: {model.contextWindow}</span>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>
 
-        <div className="toolbar-divider" aria-hidden="true" />
+        {/* Sidebar Structure Toggle (Sections & Pages) */}
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          className={`toolbar-action-pill font-sans ${showSidebar ? 'btn-pill-active' : ''}`}
+          title="Toggle Sections & Page Layout"
+        >
+          <Layers size={14} />
+          <span>{showSidebar ? 'Hide Structure' : 'Sections'}</span>
+        </button>
 
-        {/* Live Presentation Preview Toggle */}
+        {/* Live Preview Toggle */}
         <button
           type="button"
           onClick={onTogglePreviewMode}
-          className={`btn btn-secondary toolbar-action-pill ${
+          className={`btn btn-secondary toolbar-action-pill font-sans ${
             previewMode ? 'btn-preview-active' : ''
           }`}
-          title="Toggle Clean Presentation Preview"
+          title="Toggle Clean Preview"
         >
+          {previewMode ? <EyeOff size={14} /> : <Eye size={14} />}
           <span>{previewMode ? 'Exit Preview' : 'Preview'}</span>
         </button>
-
-        {/* Toggle Inspector (Manual Fine-Tuning Only) */}
-        {!previewMode && workspaceMode === 'manual' && (
-          <button
-            type="button"
-            onClick={onToggleInspector}
-            className={`toolbar-icon-btn ${showInspector ? 'btn-active-toggle' : ''}`}
-            title={showInspector ? 'Hide Element Inspector' : 'Open Element Inspector'}
-            aria-label="Toggle Element Inspector"
-          >
-            <PanelRightClose size={16} />
-          </button>
-        )}
-
-        {/* Code Viewer Button (Manual Mode Only) */}
-        {workspaceMode === 'manual' && (
-          <button
-            type="button"
-            onClick={onOpenCodeViewer}
-            className="toolbar-icon-btn"
-            title="View Generated Code"
-          >
-            <Code2 size={16} />
-          </button>
-        )}
 
         {/* Export Modal Button */}
         <button
           type="button"
           onClick={onOpenExport}
           className="toolbar-icon-btn"
-          title="Export Project (ZIP / JSON)"
+          title="Download Website (ZIP)"
+          aria-label="Download Website"
         >
-          <Download size={16} />
+          <Download size={15} />
         </button>
 
-        {/* Publish Button */}
+        {/* Primary Publish Button */}
         <button
           type="button"
           onClick={onOpenPublish}
-          className="btn btn-primary toolbar-publish-btn"
+          className="btn btn-primary toolbar-publish-btn font-sans"
         >
           <Globe size={14} />
           <span>Publish</span>
@@ -313,13 +268,14 @@ export default function TopToolbar({
           type="button"
           onClick={onOpenSettings}
           className="toolbar-icon-btn"
-          title="Project & AI Settings"
+          title="Website Settings"
+          aria-label="Settings"
         >
-          <Settings size={16} />
+          <Settings size={15} />
         </button>
 
         {/* User Account Menu */}
-        <UserMenuDropdown onNavigate={(h) => window.location.hash = h} />
+        <UserMenuDropdown onNavigate={(h) => (window.location.hash = h)} />
       </div>
     </header>
   );

@@ -112,18 +112,18 @@ export default function LeftSidebar({
   // -------------------------------------------------------------
   return (
     <aside className="studio-left-sidebar is-manual-mode" role="complementary" aria-label="Studio Manual Tools">
-      {/* Top Banner to easily return to AI Workspace */}
+      {/* Top Banner to easily return to AI Assistant */}
       <div className="manual-mode-top-banner">
         <button
           type="button"
           onClick={() => onSetActiveTab('ai')}
-          className="btn-return-ai font-mono"
-          title="Return to AI Workspace prompt mode"
+          className="btn-return-ai font-sans"
+          title="Open AI Assistant prompt mode"
         >
           <Sparkles size={14} className="text-cyan" />
-          <span>✦ SWITCH TO AI WORKSPACE</span>
+          <span>Ask AI Assistant</span>
         </button>
-        <span className="manual-mode-badge font-mono">MANUAL TOOLS</span>
+        <span className="manual-mode-badge font-sans">Sections & Style</span>
       </div>
 
       {/* Manual Tab Navigation */}

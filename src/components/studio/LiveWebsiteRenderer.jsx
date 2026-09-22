@@ -472,19 +472,19 @@ export default function LiveWebsiteRenderer({
                 : ''
             } ${isSelected ? 'section-active-selection' : ''}`}
           >
-            {/* In AI Workspace mode: Floating quick controls and edit tag */}
-            {!isInteractiveMode && workspaceMode === 'ai' && (
+            {/* Floating quick section controls on hover or selection */}
+            {!isInteractiveMode && (
               <div
                 className={`section-ai-hover-badge font-sans ${isSelected ? 'is-selected-badge' : ''}`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
                   className="section-ai-badge-label"
-                  onClick={() => onSelectSection(section.id)}
-                  title="Click to prompt AI for this section"
+                  onClick={() => onSelectSection(isSelected ? null : section.id)}
+                  title="Click to focus editing on this section"
                 >
-                  <Sparkles size={11} className="text-cyan" />
-                  <span>{section.name || section.type}</span>
+                  <Sparkles size={12} className="text-cyan" />
+                  <span>{section.name || (section.type ? section.type.charAt(0).toUpperCase() + section.type.slice(1) : 'Section')}</span>
                 </div>
 
                 {isSelected && (
@@ -495,9 +495,9 @@ export default function LiveWebsiteRenderer({
                         disabled={index === 0}
                         onClick={() => onMoveSectionUp(section.id)}
                         className="section-ai-mini-btn"
-                        title="Move Up"
+                        title="Move Section Up"
                       >
-                        <ChevronUp size={12} />
+                        <ChevronUp size={13} />
                       </button>
                     )}
                     {onMoveSectionDown && (
@@ -506,9 +506,9 @@ export default function LiveWebsiteRenderer({
                         disabled={index === sections.length - 1}
                         onClick={() => onMoveSectionDown(section.id)}
                         className="section-ai-mini-btn"
-                        title="Move Down"
+                        title="Move Section Down"
                       >
-                        <ChevronDown size={12} />
+                        <ChevronDown size={13} />
                       </button>
                     )}
                     {onDeleteSection && (
@@ -518,7 +518,7 @@ export default function LiveWebsiteRenderer({
                         className="section-ai-mini-btn delete"
                         title="Delete Section"
                       >
-                        <Trash2 size={11} />
+                        <Trash2 size={12} />
                       </button>
                     )}
                   </div>

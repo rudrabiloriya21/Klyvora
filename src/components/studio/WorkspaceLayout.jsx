@@ -4,6 +4,7 @@ import LeftSidebar from './LeftSidebar';
 import CenterCanvas from './CenterCanvas';
 import RightInspector from './RightInspector';
 import AIAssistantDrawer from './AIAssistantDrawer';
+import FloatingAICopilot from './FloatingAICopilot';
 import SectionLibraryModal from './SectionLibraryModal';
 import CodeViewerModal from './CodeViewerModal';
 import ExportModal from './ExportModal';
@@ -62,13 +63,10 @@ export default function WorkspaceLayout({
   // Editor UI State
   const [device, setDevice] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
   const [selectedModel, setSelectedModel] = useState(getModelById('system-architect-1.2-neo'));
-  const [selectedSectionId, setSelectedSectionId] = useState(() => {
-    const loaded = storageService.getProject(projectId);
-    const homePage = loaded?.pages?.find((p) => p.isHome) || loaded?.pages?.[0];
-    return homePage?.sections?.[0]?.id || null;
-  });
-  const [leftTab, setLeftTab] = useState('ai'); // Default to AI Workspace Mode
-  const [showInspector, setShowInspector] = useState(false); // Clean canvas by default
+  const [selectedSectionId, setSelectedSectionId] = useState(null); // Clean view on load
+  const [showSidebar, setShowSidebar] = useState(false); // Clean full-width canvas by default
+  const [leftTab, setLeftTab] = useState('sections'); // Friendly sections view when sidebar opened
+  const [showInspector, setShowInspector] = useState(false);
   const [aiDrawerOpen, setAiDrawerOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState('Saved');
@@ -305,15 +303,11 @@ export default function WorkspaceLayout({
         onRedo={handleRedo}
         device={device}
         onSetDevice={setDevice}
-        selectedModel={selectedModel}
-        onSelectModel={setSelectedModel}
-        workspaceMode={leftTab === 'ai' ? 'ai' : 'manual'}
-        onToggleWorkspaceMode={() => setLeftTab(leftTab === 'ai' ? 'sections' : 'ai')}
-        showInspector={showInspector}
-        onToggleInspector={() => setShowInspector(!showInspector)}
+        showSidebar={showSidebar}
+        onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        onUpdateTheme={handleUpdateTheme}
         previewMode={previewMode}
         onTogglePreviewMode={() => setPreviewMode(!previewMode)}
-        onOpenCodeViewer={() => setCodeViewerOpen(true)}
         onOpenExport={() => setExportModalOpen(true)}
         onOpenPublish={() => setPublishModalOpen(true)}
         onOpenSettings={() => setSettingsModalOpen(true)}
@@ -324,11 +318,11 @@ export default function WorkspaceLayout({
       {/* 2. Workspace Body Grid */}
       <div
         className={`studio-workspace-body ${
-          showInspector && !previewMode ? 'has-inspector' : ''
-        } ${leftTab === 'ai' ? 'is-ai-mode' : 'is-manual-mode'}`}
+          showSidebar && !previewMode ? 'has-sidebar' : 'canvas-full-width'
+        }`}
       >
-        {/* Left Sidebar (Hidden in Pure Preview) */}
-        {!previewMode && (
+        {/* Left Sidebar (Only visible when user toggles Sections/Structure) */}
+        {!previewMode && showSidebar && (
           <LeftSidebar
             project={project}
             activeTab={leftTab}
@@ -338,7 +332,7 @@ export default function WorkspaceLayout({
             selectedSectionId={selectedSectionId}
             onSelectSection={setSelectedSectionId}
             onClearSelectedSection={() => setSelectedSectionId(null)}
-            workspaceMode={leftTab === 'ai' ? 'ai' : 'manual'}
+            workspaceMode="manual"
             onSwitchMode={(mode) => setLeftTab(mode === 'ai' ? 'ai' : 'sections')}
             onUpdateTheme={handleUpdateTheme}
             onUpdateProject={(p) => commitProjectState({ ...project, ...p })}
@@ -359,24 +353,35 @@ export default function WorkspaceLayout({
           />
         )}
 
-        {/* Center Canvas */}
-        <CenterCanvas
-          project={project}
-          device={device}
-          workspaceMode={leftTab === 'ai' ? 'ai' : 'manual'}
-          activePageSlug={activePageSlug}
-          onNavigatePage={handleNavigatePage}
-          selectedSectionId={selectedSectionId}
-          onSelectSection={setSelectedSectionId}
-          onMoveSectionUp={handleMoveSectionUp}
-          onMoveSectionDown={handleMoveSectionDown}
-          onDuplicateSection={handleDuplicateSection}
-          onDeleteSection={handleDeleteSection}
-          onAddSectionClick={() => setSectionLibraryOpen(true)}
-          previewMode={previewMode}
-        />
+        {/* Center Canvas Area with Full Focus on the Live Website */}
+        <div className="canvas-wrapper-relative">
+          <CenterCanvas
+            project={project}
+            device={device}
+            workspaceMode={leftTab === 'ai' ? 'ai' : 'manual'}
+            activePageSlug={activePageSlug}
+            onNavigatePage={handleNavigatePage}
+            selectedSectionId={selectedSectionId}
+            onSelectSection={setSelectedSectionId}
+            onMoveSectionUp={handleMoveSectionUp}
+            onMoveSectionDown={handleMoveSectionDown}
+            onDuplicateSection={handleDuplicateSection}
+            onDeleteSection={handleDeleteSection}
+            onAddSectionClick={() => setSectionLibraryOpen(true)}
+            previewMode={previewMode}
+          />
 
-        {/* Right Inspector (Hidden in Pure Preview and by default in AI Workspace mode) */}
+          {/* Floating AI Copilot Bar docked over Canvas */}
+          <FloatingAICopilot
+            project={project}
+            selectedSectionId={selectedSectionId}
+            onClearSelectedSection={() => setSelectedSectionId(null)}
+            onApplyActions={handleApplyAiActions}
+            previewMode={previewMode}
+          />
+        </div>
+
+        {/* Right Inspector (Hidden in Pure Preview and by default) */}
         {!previewMode && showInspector && (
           <RightInspector
             project={project}
@@ -388,16 +393,16 @@ export default function WorkspaceLayout({
             }}
           />
         )}
-
-        {/* AI Assistant Sliding Drawer */}
-        <AIAssistantDrawer
-          isOpen={aiDrawerOpen}
-          onClose={() => setAiDrawerOpen(false)}
-          project={project}
-          selectedModel={selectedModel}
-          onApplyActions={handleApplyAiActions}
-        />
       </div>
+
+      {/* AI Assistant Sliding Drawer */}
+      <AIAssistantDrawer
+        isOpen={aiDrawerOpen}
+        onClose={() => setAiDrawerOpen(false)}
+        project={project}
+        selectedModel={selectedModel}
+        onApplyActions={handleApplyAiActions}
+      />
 
       {/* Auxiliary Modals */}
       <SectionLibraryModal
