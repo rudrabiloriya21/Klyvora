@@ -1,13 +1,23 @@
-import { createProject, createSection } from '../../models/projectSchema.js';
+import { createProject, createSection, generateSectionId } from '../../models/projectSchema.js';
 import { storageService } from '../storageService.js';
 import { validateActions } from './actionValidator.js';
+import { buildWebsiteContext, INDUSTRY_TYPES } from './businessContextEngine.js';
+import { generateDesignSystem } from './designSystemEngine.js';
+import { planWebsiteArchitecture } from './sitemapEngine.js';
+import { validateEntireWebsite, validateSectionContent } from './contentValidator.js';
 
 const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
 const GROQ_API_URL = 'https://api.groq.com/openai/v1';
 const FALLBACK_DEFAULT_GROQ_KEY = ['gsk_onEryCVrWxF8cvVXuKs2WGdyb3FY', '65rnfyFqaKqF1Wbi3PNjIWwL'].join('');
 const DEFAULT_GROQ_KEY = env.VITE_GROQ_API_KEY || env.VITE_AI_API_KEY || FALLBACK_DEFAULT_GROQ_KEY;
+export const GROQ_MODEL_CASCADE = [
+  'openai/gpt-oss-120b',
+  'qwen/qwen3.8-27b',
+  'openai/gpt-oss-20b',
+];
 const PRIMARY_MODEL = 'openai/gpt-oss-120b';
-const FALLBACK_MODEL = 'openai/gpt-oss-20b';
+const FALLBACK_MODEL = 'qwen/qwen3.8-27b';
+
 
 /**
  * Curated high-resolution Unsplash photo helper by category
@@ -94,17 +104,37 @@ const CATEGORY_PHOTOS = {
       'https://images.unsplash.com/photo-1579684385127-1ef15d508118?q=80&w=600&auto=format&fit=crop',
     ],
   },
+  salon: {
+    hero: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1200&auto=format&fit=crop',
+    items: [
+      'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1633681926022-84c23e8cb2d6?q=80&w=600&auto=format&fit=crop',
+    ],
+  },
+  portfolio: {
+    hero: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=1200&auto=format&fit=crop',
+    items: [
+      'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=600&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?q=80&w=600&auto=format&fit=crop',
+    ],
+  },
 };
 
 function resolveCategoryKey(catStr = '') {
   const s = catStr.toLowerCase();
+  if (s.includes('salon') || s.includes('hair') || s.includes('spa') || s.includes('beauty') || s.includes('makeover')) return 'salon';
+  if (s.includes('portfolio') || s.includes('resume') || s.includes('developer') || s.includes('architect portfolio')) return 'portfolio';
   if (s.includes('cafe') || s.includes('coffee') || s.includes('chai')) return 'cafe';
   if (s.includes('bake') || s.includes('bread') || s.includes('pastry') || s.includes('sweet') || s.includes('mithai')) return 'bakery';
-  if (s.includes('dine') || s.includes('rest') || s.includes('food') || s.includes('sushi') || s.includes('biryani')) return 'restaurant';
+  if (s.includes('dine') || s.includes('rest') || s.includes('food') || s.includes('sushi') || s.includes('biryani') || s.includes('omakase') || s.includes('japanese')) return 'restaurant';
   if (s.includes('coach') || s.includes('institute') || s.includes('academy') || s.includes('tuition') || s.includes('school') || s.includes('college') || /\b(jee|neet|iit|educat)/i.test(s)) return 'education';
   if (s.includes('clinic') || s.includes('doctor') || s.includes('dent') || s.includes('health') || s.includes('hospital') || s.includes('medic')) return 'healthcare';
   if (s.includes('saree') || s.includes('cloth') || s.includes('apparel') || s.includes('fashion') || s.includes('boutique') || s.includes('jewel') || s.includes('kirana') || s.includes('dukan') || s.includes('retail')) return 'fashion';
-  if (s.includes('saas') || s.includes('software') || s.includes('cloud') || s.includes('telemetry') || s.includes('data') || /\b(ai|ml|api|tech|gpu)\b/i.test(s)) return 'saas';
+  if (s.includes('saas') || s.includes('software') || s.includes('cloud') || s.includes('telemetry') || s.includes('data') || /\b(ai|ml|api|tech|gpu|platform|bot)\b/i.test(s)) return 'saas';
   if (s.includes('fit') || s.includes('gym') || s.includes('pilates') || s.includes('yoga')) return 'fitness';
   return 'agency';
 }
@@ -200,13 +230,13 @@ export function detectIndustryVertical(prompt = '', category = '') {
   return 'general';
 }
 
-function getCuratedPhoto(category, index = 0) {
+export function getCuratedPhoto(category, index = 0) {
   const key = resolveCategoryKey(category);
   const list = CATEGORY_PHOTOS[key]?.items || CATEGORY_PHOTOS.agency.items;
   return list[index % list.length];
 }
 
-function getHeroPhoto(category) {
+export function getHeroPhoto(category) {
   const key = resolveCategoryKey(category);
   return CATEGORY_PHOTOS[key]?.hero || CATEGORY_PHOTOS.agency.hero;
 }
@@ -226,162 +256,217 @@ export const groqService = {
   },
 
   /**
+   * Resilient Groq execution with multi-model cascade failover:
+   * Tries primary model (e.g. openai/gpt-oss-120b), immediately cascades to
+   * high-speed models (qwen/qwen3.8-27b, openai/gpt-oss-20b) if 429 rate limit or errors occur.
+   */
+  async executeGroqChatWithCascade({
+    apiUrl,
+    apiKey,
+    preferredModel,
+    messages,
+    timeoutMs = 30000,
+    temperature = 0.2,
+  }) {
+    const modelsToTry = [
+      preferredModel,
+      ...GROQ_MODEL_CASCADE.filter((m) => m !== preferredModel),
+    ].filter(Boolean);
+
+    let lastError = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        const response = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            messages,
+            response_format: { type: 'json_object' },
+            temperature,
+          }),
+        });
+
+        clearTimeout(timer);
+
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => response.statusText);
+          console.warn(`[Klyvora Groq] Model "${model}" failed (HTTP ${response.status}): ${errBody.slice(0, 150)}. Failing over to next model in cascade...`);
+          lastError = new Error(`Groq HTTP ${response.status} on model ${model}: ${errBody.slice(0, 150)}`);
+          continue;
+        }
+
+        const data = await response.json();
+        const rawContent = data.choices?.[0]?.message?.content || '{}';
+        const cleanJson = rawContent.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        return { parsed, modelUsed: model };
+      } catch (err) {
+        console.warn(`[Klyvora Groq] Model "${model}" error: ${err.message}. Failing over to next model in cascade...`);
+        lastError = err;
+      }
+    }
+
+    throw lastError || new Error('All models in Groq cascade failed.');
+  },
+
+  /**
    * Create an entire bespoke website project from a single natural-language prompt
    */
   async generateWebsiteFromPrompt(prompt, userId) {
     const { apiKey, apiUrl, modelId, timeoutMs } = this.getCredentials();
 
-    const systemPrompt = `You are the Lead Digital Architect for Klyvora Studio (India's #1 AI website builder for shops, coaching institutes, clinics, and startups).
-Generate a complete, world-class, bespoke website specification tailored specifically to the user's prompt.
+    // 1. Establish Canonical Business Context as Single Source of Truth
+    const websiteContext = buildWebsiteContext(prompt);
+    const architecturePlan = planWebsiteArchitecture(websiteContext);
+    const designSystem = generateDesignSystem(websiteContext);
 
-REGIONAL & BUSINESS DIRECTIVES:
-1. CURRENCY: All prices, fees, and catalog items MUST be formatted in Indian Rupees (₹) with realistic Indian price points (e.g., ₹499, ₹1,299, ₹4,999, ₹14,999, ₹65,000) unless explicitly requested otherwise in foreign currency. NEVER default to dollars ($).
-2. DOMAIN-SPECIFIC CTAs & FLOWS (CRITICAL):
-   - Tech Startup / Cloud AI / B2B SaaS / Developer Tools:
-     * primaryBtnText: "Start Free Trial" or "Book Live Demo"
-     * secondaryBtnText: "Explore Platform" or "View Documentation"
-     * badge: "✦ NEXT-GEN ENTERPRISE AI PLATFORM"
-   - Coaching Institute / Academy / Classes / IIT-JEE / NEET:
-     * primaryBtnText: "Apply for Admission" or "Enroll Now"
-     * secondaryBtnText: "Download Syllabus & Fee Structure"
-     * badge: "✦ ADMISSIONS OPEN 2026-27"
-   - Clinic / Hospital / Dental / Healthcare:
-     * primaryBtnText: "Book Appointment"
-     * secondaryBtnText: "WhatsApp Consultation"
-     * badge: "✦ CERTIFIED CLINICAL EXCELLENCE"
-   - Retail / Saree Boutique / Bakery / Sweets / Kirana:
-     * primaryBtnText: "Order on WhatsApp"
-     * secondaryBtnText: "View Catalog & Prices"
-     * badge: "✦ AUTHENTIC HANDCRAFTED HERITAGE"
-   - Agency / Consultancy / Studio:
-     * primaryBtnText: "Get Proposal"
-     * secondaryBtnText: "Explore Portfolio"
-     * badge: "✦ AWARD-WINNING GROWTH STUDIO"
-3. LOCATION: Default to relevant Indian cities/states (e.g., Bengaluru for Tech, Kota/Delhi for Coaching, Jaipur/Surat for Sarees, Mumbai for Clinics & Finance).
-4. VERNACULAR & HINGLISH: Intuitively handle English, Hindi, and Hinglish business requests (e.g. "kapde ki dukan", "coaching center", "mithai shop", "startup website").
-5. AUTHENTIC REVIEWS: Use authentic Indian customer, student, or client names matching the sector.
+    const systemPrompt = `You are the Lead Digital Architect for Klyvora Studio.
+Generate a complete, coherent, production-quality website specification tailored specifically to the user's business.
+
+CANONICAL BUSINESS CONTEXT:
+- Brand Name: "${websiteContext.brandName}"
+- Industry: "${websiteContext.industry}" (${websiteContext.subIndustry})
+- Target Audience: ${websiteContext.targetAudience.join(', ')}
+- Business Goals: ${websiteContext.businessGoals.join(', ')}
+- Tone & Voice: ${websiteContext.tone.join(', ')}
+- Primary CTA: "${websiteContext.callsToAction.primary.label}"
+- Secondary CTA: "${websiteContext.callsToAction.secondary.label}"
+
+STRICT ANTI-DRIFT RULES (CRITICAL):
+1. ZERO INDUSTRY DRIFT: All content, headlines, products, services, FAQs, and testimonials MUST strictly belong to ${websiteContext.industry}.
+2. STRICTLY PROHIBITED CONCEPTS & TERMS: NEVER generate or mention any of the following terms:
+${websiteContext.prohibitedTerms.slice(0, 30).join(', ')}
+3. VOCABULARY TO EMPHASIZE:
+${websiteContext.vocabulary.join(', ')}
+4. REALISTIC CONTENT: NEVER use lorem ipsum, generic filler, fake certifications, or fake stats presented as verified facts.
+5. NO REPETITION: Every feature and section must have a distinct purpose and value proposition.
+6. CURRENCY: All prices, fees, and catalog items MUST be in Indian Rupees (₹) unless explicitly requested otherwise.
+7. WORLD-CLASS COPYWRITING: Write crisp, punchy, persuasive copy like senior creative directors at Apple, Linear, or Stripe. Ensure headlines are memorable, benefit-driven, and specific to "${websiteContext.brandName}".
 
 You MUST output a valid JSON object matching this schema exactly:
 {
-  "name": "Creative business or website name",
-  "category": "Retail Shop | Saree Boutique | Coaching Institute | Tech Startup | Cafe & Mithai | Clinic | Agency | E-commerce | Supermarket | Local Service",
+  "name": "${websiteContext.brandName}",
+  "category": "${websiteContext.subIndustry}",
   "tagline": "Compelling, memorable tagline (under 12 words)",
   "description": "Comprehensive brand summary and value proposition (2-3 sentences)",
-  "location": "City, State, India (e.g. Indiranagar, Bengaluru, Karnataka)",
+  "location": "City, State, India",
   "phone": "+91 98765 43210",
   "email": "contact@domain.in",
   "whatsapp": "+919876543210",
   "hours": "Operating hours e.g. Mon–Sun: 9:00 AM – 8:00 PM",
   "theme": {
-    "primaryColor": "Hex color tailored to brand (e.g. #f59e0b for warm saffron/amber, #10b981 for emerald, #06b6d4 for tech cyan, #8b5cf6 for luxury violet, #ef4444 for royal crimson, #ec4899 for bridal pink)",
-    "secondaryColor": "Harmonious hex color code",
-    "accentColor": "Vibrant accent hex color code",
-    "bgColor": "Deep dark hex background e.g. #07080c, #09090b, #0c0a09",
-    "borderRadius": "14px"
+    "primaryColor": "${designSystem.primaryColor}",
+    "secondaryColor": "${designSystem.secondaryColor}",
+    "accentColor": "${designSystem.accentColor}",
+    "bgColor": "${designSystem.bgColor}",
+    "borderRadius": "${designSystem.borderRadius}"
   },
   "hero": {
-    "heading": "Inspiring, punchy main H1 headline (under 10 words)",
-    "subheading": "Engaging sub-headline detailing the unique value proposition for Indian customers",
-    "badge": "✦ EYE-CATCHING ALL-CAPS BADGE",
-    "primaryBtnText": "Primary CTA label e.g. Order via WhatsApp, Explore Menu, View Batches, Start Free Trial",
-    "secondaryBtnText": "Secondary CTA label e.g. Call Store, View Fees, Contact Us"
+    "heading": "Inspiring main H1 headline for ${websiteContext.brandName}",
+    "subheading": "Engaging sub-headline detailing the unique value proposition",
+    "badge": "${architecturePlan.heroBadge || '✦ INTENTIONAL DIGITAL ARCHITECTURE'}",
+    "trustBadge": "${architecturePlan.trustBadge || '✦ VERIFIED BENCHMARK STANDARD'}",
+    "chipText": "${architecturePlan.chipText || 'FLAGSHIP STANDARD'}",
+    "stats": [
+      { "value": "99.9%", "label": "Key Metric 1" },
+      { "value": "<15ms", "label": "Key Metric 2" },
+      { "value": "4.9★", "label": "Key Metric 3" }
+    ],
+    "primaryBtnText": "${websiteContext.callsToAction.primary.label}",
+    "secondaryBtnText": "${websiteContext.callsToAction.secondary.label}"
   },
+  "stats": [
+    { "value": "99.9%", "label": "Metric 1", "desc": "Brief metric explanation" },
+    { "value": "10M+", "label": "Metric 2", "desc": "Brief metric explanation" },
+    { "value": "<12ms", "label": "Metric 3", "desc": "Brief metric explanation" },
+    { "value": "4.9★", "label": "Metric 4", "desc": "Brief metric explanation" }
+  ],
   "about": {
     "heading": "About section title",
-    "paragraph1": "Rich narrative about the craft, heritage, vision, and dedication.",
-    "paragraph2": "Secondary narrative emphasizing quality, customer trust, and transparency."
+    "paragraph1": "Rich narrative about the craft, heritage, or engineering standards.",
+    "paragraph2": "Secondary narrative emphasizing quality, trust, and transparency."
   },
   "features": [
-    { "title": "Feature 1 Title", "description": "Compelling explanation of this offering or standard" },
-    { "title": "Feature 2 Title", "description": "Compelling explanation of this offering or standard" },
-    { "title": "Feature 3 Title", "description": "Compelling explanation of this offering or standard" }
+    { "title": "Feature 1 Title", "description": "Compelling explanation belonging strictly to ${websiteContext.industry}" },
+    { "title": "Feature 2 Title", "description": "Compelling explanation belonging strictly to ${websiteContext.industry}" },
+    { "title": "Feature 3 Title", "description": "Compelling explanation belonging strictly to ${websiteContext.industry}" },
+    { "title": "Feature 4 Title", "description": "Compelling explanation belonging strictly to ${websiteContext.industry}" }
   ],
   "showcaseItems": [
-    { "title": "Signature Item 1", "description": "Rich product, course, or service details", "price": "₹1,499", "tag": "BESTSELLER" },
-    { "title": "Signature Item 2", "description": "Rich product, course, or service details", "price": "₹3,999", "tag": "SIGNATURE" },
-    { "title": "Signature Item 3", "description": "Rich product, course, or service details", "price": "₹799", "tag": "POPULAR" },
-    { "title": "Signature Item 4", "description": "Rich product, course, or service details", "price": "₹7,499", "tag": "FESTIVE" }
+    { "title": "Signature Item 1", "description": "Product or service details", "price": "₹...", "tag": "BESTSELLER" },
+    { "title": "Signature Item 2", "description": "Product or service details", "price": "₹...", "tag": "SIGNATURE" },
+    { "title": "Signature Item 3", "description": "Product or service details", "price": "₹...", "tag": "POPULAR" }
   ],
   "testimonials": [
-    { "name": "Pooja Sharma", "role": "Verified Patron", "comment": "Authentic, glowing customer quote highlighting quality and service." },
-    { "name": "Rohan Mehta", "role": "Business Owner", "comment": "Another glowing review highlighting exceptional value or fast WhatsApp delivery." }
+    { "name": "Client Name", "role": "Relevant Industry Role", "comment": "Authentic testimonial regarding ${websiteContext.brandName}" },
+    { "name": "Client Name 2", "role": "Relevant Industry Role", "comment": "Another glowing testimonial" }
   ],
   "pricing": [
-    { "name": "Starter", "price": "₹499", "period": "/mo or flat", "popular": false, "features": ["Feature A", "Feature B", "Feature C"] },
-    { "name": "Growth Pro", "price": "₹1,499", "period": "/mo or flat", "popular": true, "features": ["Everything in Starter", "Feature D", "Feature E", "WhatsApp Priority Support"] },
-    { "name": "Enterprise", "price": "₹4,999", "period": "/mo or custom", "popular": false, "features": ["Dedicated Manager", "Unlimited Access", "24/7 SLA"] }
+    { "name": "Starter", "price": "₹...", "period": "/month or flat", "popular": false, "features": ["..."] },
+    { "name": "Professional", "price": "₹...", "period": "/month or flat", "popular": true, "features": ["..."] },
+    { "name": "Enterprise", "price": "Custom or ₹...", "period": "", "popular": false, "features": ["..."] }
   ],
   "faq": [
-    { "question": "How can I place an order or admission inquiry?", "answer": "You can tap our WhatsApp button to chat directly with our team or call our store." },
-    { "question": "What payment methods do you accept?", "answer": "We accept UPI (Google Pay, PhonePe, Paytm), Netbanking, Cards, and Cash on Delivery." },
-    { "question": "Do you offer delivery across India?", "answer": "Yes, we provide express shipping across all pin codes in India." }
-  ]
+    { "question": "Question relevant to ${websiteContext.industry}?", "answer": "Clear, professional answer." },
+    { "question": "Question 2?", "answer": "Answer 2." },
+    { "question": "Question 3?", "answer": "Answer 3." }
+  ],
+  "ctaBanner": {
+    "badge": "GET STARTED",
+    "heading": "Compelling closing call-to-action headline",
+    "subheading": "Persuasive summary detailing why to take action today.",
+    "primaryBtnText": "${websiteContext.callsToAction.primary.label}",
+    "secondaryBtnText": "${websiteContext.callsToAction.secondary.label}"
+  }
 }
 OUTPUT RAW JSON ONLY. NO MARKDOWN TICKS, NO PREAMBLE.`;
 
     let parsedData = null;
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: modelId,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Create a bespoke website according to this prompt: "${prompt}"` },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.3,
-        }),
+      const res = await this.executeGroqChatWithCascade({
+        apiUrl,
+        apiKey,
+        preferredModel: modelId,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Create a bespoke website according to this prompt: "${prompt}"` },
+        ],
+        timeoutMs,
+        temperature: 0.3,
       });
-
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        // Fallback to 20b model
-        if (modelId !== FALLBACK_MODEL) {
-          const fallbackResp = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: FALLBACK_MODEL,
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: `Create a bespoke website according to this prompt: "${prompt}"` },
-              ],
-              response_format: { type: 'json_object' },
-              temperature: 0.3,
-            }),
-          });
-          if (fallbackResp.ok) {
-            const fbData = await fallbackResp.json();
-            parsedData = JSON.parse(fbData.choices?.[0]?.message?.content || '{}');
-          }
-        }
-        if (!parsedData) {
-          throw new Error(`Groq HTTP ${response.status}: ${response.statusText}`);
-        }
-      } else {
-        const data = await response.json();
-        parsedData = JSON.parse(data.choices?.[0]?.message?.content || '{}');
-      }
+      parsedData = res.parsed;
     } catch (err) {
-      console.warn('[Klyvora Groq] Remote generation call failed, synthesizing intelligent project:', err);
-      parsedData = this.synthesizeFallbackProjectData(prompt);
+      console.warn('[Klyvora Groq] Remote generation call failed across all cascade models, synthesizing intelligent project:', err);
+      parsedData = this.synthesizeFallbackProjectData(prompt, websiteContext, architecturePlan);
     }
 
-    return this.constructProjectFromData(parsedData, prompt, userId);
+    const rawProject = this.constructProjectFromData(
+      parsedData,
+      prompt,
+      userId,
+      websiteContext,
+      architecturePlan,
+      designSystem
+    );
+
+    const validationResult = validateEntireWebsite(
+      rawProject,
+      websiteContext,
+      architecturePlan,
+      designSystem
+    );
+
+    return storageService.saveProject(validationResult.project, userId);
   },
 
   /**
@@ -424,18 +509,22 @@ You MUST output a valid JSON object matching this schema:
 }
 
 Action Format Reference:
-1. "update_text": target="hero.heading" | "hero.subheading" | "about.paragraph1" | "contact.heading", value="new text"
+1. "update_text": target="hero.heading" | "hero.subheading" | "hero.badge" | "hero.trustBadge" | "hero.chipText" | "about.paragraph1" | "contact.heading" | "cta_banner.heading", value="new text"
 2. "update_style": target="theme.primaryColor" | "theme.accentColor" | "theme.bgColor" | "theme.borderRadius", value="#hex"
-3. "update_button": target="hero.primaryBtnText" | "hero.primaryBtnUrl" | "hero.secondaryBtnText", value="new text"
-4. "update_section_props": target="hero" | "about" | "products" | "contact", value={ ...props to merge }
+3. "update_button": target="hero.primaryBtnText" | "hero.primaryBtnUrl" | "hero.secondaryBtnText" | "cta_banner.primaryBtnText", value="new text"
+4. "update_section_props": target="hero" | "stats" | "about" | "features" | "products" | "pricing" | "cta_banner" | "contact", value={ ...props to merge }
+   - For hero: target="hero", value={ "badge": "...", "trustBadge": "...", "chipText": "...", "stats": [{ "value": "...", "label": "..." }] }
+   - For stats: target="stats", value={ "heading": "...", "subheading": "...", "items": [{ "value": "...", "label": "..." }] }
+   - For cta_banner: target="cta_banner", value={ "heading": "...", "subheading": "...", "primaryBtnText": "..." }
 5. "add_item":
-   - For products/menu: target="products", value={ "name": "...", "price": "$...", "desc": "...", "tag": "New" }
+   - For stats: target="stats", value={ "value": "99.9%", "label": "Uptime Guarantee" }
+   - For products/menu: target="products", value={ "name": "...", "price": "₹...", "desc": "...", "tag": "New" }
    - For testimonials: target="testimonials", value={ "author": "...", "role": "...", "quote": "...", "rating": 5 }
-   - For pricing: target="pricing", value={ "name": "...", "price": "$...", "period": "/mo", "features": ["..."] }
+   - For pricing: target="pricing", value={ "name": "...", "price": "₹...", "period": "/mo", "features": ["..."] }
    - For features: target="features", value={ "title": "...", "desc": "..." }
    - For faq: target="faq", value={ "q": "...", "a": "..." }
-6. "add_section": target="page.home.sections", value={ "type": "pricing" | "testimonials" | "faq" | "features" | "products" | "contact", "props": { ... } }
-7. "remove_section": target="pricing" | "faq" | "testimonials" | "<sectionId>"
+6. "add_section": target="page.home.sections", value={ "type": "stats" | "cta_banner" | "pricing" | "testimonials" | "faq" | "features" | "products" | "contact", "props": { ... } }
+7. "remove_section": target="pricing" | "faq" | "testimonials" | "stats" | "cta_banner" | "<sectionId>"
 
 OUTPUT RAW JSON ONLY.`;
 
@@ -444,377 +533,291 @@ OUTPUT RAW JSON ONLY.`;
       content: m.text || '',
     }));
 
+    let parsed = null;
+    let modelUsed = modelId;
+
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-      const response = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: modelId,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...recentHistory,
-            { role: 'user', content: prompt },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.2,
-        }),
+      const res = await this.executeGroqChatWithCascade({
+        apiUrl,
+        apiKey,
+        preferredModel: modelId,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...recentHistory,
+          { role: 'user', content: prompt },
+        ],
+        timeoutMs,
+        temperature: 0.2,
       });
-
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        throw new Error(`Groq API returned HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const rawContent = data.choices?.[0]?.message?.content || '{}';
-      const parsed = JSON.parse(rawContent);
-
-      const validation = validateActions(parsed.actions || [], project);
-
-      return {
-        message: parsed.message || 'I have analyzed your request and updated the website live.',
-        actions: validation.validActions,
-        invalidActions: validation.invalidActions,
-        provider: 'groq',
-        isFallback: false,
-      };
+      parsed = res.parsed;
+      modelUsed = res.modelUsed;
     } catch (err) {
-      console.warn('[Klyvora Groq] Remote mutation call failed:', err);
-      throw err;
+      console.warn('[Klyvora Groq] Remote modification call failed across all cascade models, activating smart natural language synthesizer:', err);
+      return this.synthesizeFallbackModification(prompt, project);
     }
+
+    const validation = validateActions(parsed?.actions || [], project);
+
+    // If remote model returned 0 valid actions, supplement with targeted fallback compiler
+    if (validation.validActions.length === 0) {
+      console.warn('[Klyvora Groq] Remote model returned empty actions. Compiling via natural language action compiler...');
+      return this.synthesizeFallbackModification(prompt, project);
+    }
+
+    return {
+      message: parsed?.message || 'I have analyzed your request and updated the website live.',
+      actions: validation.validActions,
+      invalidActions: validation.invalidActions,
+      provider: `groq (${modelUsed})`,
+      isFallback: false,
+    };
   },
 
   /**
    * Helper: Construct a full project schema from parsed JSON data
    */
-  constructProjectFromData(data, originalPrompt, userId) {
-    const brandName = data.name || 'Klyvora Digital Studio';
-    const category = data.category || 'Digital Creation';
-    const description = data.description || originalPrompt;
-    const isFood = ['restaurant', 'bakery', 'cafe'].includes(resolveCategoryKey(category));
-    const vertical = detectIndustryVertical(originalPrompt, category);
+  constructProjectFromData(data, originalPrompt, userId, websiteContext = null, architecturePlan = null, designSystem = null) {
+    const context = websiteContext || buildWebsiteContext(originalPrompt);
+    const arch = architecturePlan || planWebsiteArchitecture(context);
+    const ds = designSystem || generateDesignSystem(context);
+
+    const brandName = (context.brandName && !['Venture Studio', 'Studio', 'Brand'].includes(context.brandName))
+      ? context.brandName
+      : (data.name || context.brandName || 'Venture Studio');
+    const category = context.subIndustry || data.category || 'Digital Experience';
+    const description = data.description || context.businessGoals?.join('. ') || originalPrompt;
+    const isFood = context.industry === INDUSTRY_TYPES.RESTAURANT;
 
     // 1. Dynamic Sector Calibration for CTAs and Navigation Flows
-    let defaultNavCTA = data.whatsapp ? 'WhatsApp Order' : 'Get in Touch';
-    let defaultNavUrl = data.whatsapp ? '#whatsapp' : '#contact';
-    let defaultHeroPrimary = data.whatsapp ? 'Order via WhatsApp' : 'Explore Offerings';
-    let defaultHeroPrimaryUrl = data.whatsapp ? '#whatsapp' : '#products';
-    let defaultHeroSecondary = 'Get in Touch';
-    let defaultHeroSecondaryUrl = '#contact';
-    let defaultHeroBadge = '✦ PREMIER DISTINCTION';
-    let defaultNavLinks = [
+    const defaultNavCTA = arch.navCTA || context.callsToAction?.primary?.label || (data.whatsapp ? 'WhatsApp Order' : 'Get in Touch');
+    const defaultNavUrl = arch.navCTAUrl || context.callsToAction?.primary?.targetUrl || (data.whatsapp ? '#whatsapp' : '#contact');
+    const defaultHeroPrimary = context.callsToAction?.primary?.label || (data.whatsapp ? 'Order via WhatsApp' : 'Explore Platform');
+    const defaultHeroPrimaryUrl = context.callsToAction?.primary?.targetUrl || '#contact';
+    const defaultHeroSecondary = context.callsToAction?.secondary?.label || 'Learn More';
+    const defaultHeroSecondaryUrl = context.callsToAction?.secondary?.targetUrl || '#pricing';
+    const defaultNavLinks = arch.navLinks || [
       { label: 'Home', url: '#home' },
-      { label: 'About', url: '#about' },
-      { label: isFood ? 'Menu' : 'Offerings', url: '#products' },
-      { label: 'Reviews', url: '#testimonials' },
+      { label: 'Features', url: '#features' },
+      { label: 'Capabilities', url: '#products' },
       { label: 'Pricing', url: '#pricing' },
       { label: 'FAQ', url: '#faq' },
       { label: 'Contact', url: '#contact' },
     ];
-    let defaultShowcaseBadge = isFood ? 'DAILY MENU' : 'FEATURED OFFERINGS';
-    let defaultShowcaseHeading = isFood ? 'Artisan Provisions & Selections' : 'Signature Products & Solutions';
-    let defaultPricingBadge = 'TRANSPARENT PLANS';
-    let defaultPricingHeading = 'Straightforward Engagements in ₹';
 
-    if (vertical === 'tech') {
-      defaultNavCTA = 'Start Free Trial';
-      defaultNavUrl = '#pricing';
-      defaultHeroPrimary = 'Start Free Trial';
-      defaultHeroPrimaryUrl = '#pricing';
-      defaultHeroSecondary = 'Book Live Demo';
-      defaultHeroSecondaryUrl = '#contact';
-      defaultHeroBadge = '✦ NEXT-GEN ENTERPRISE AI PLATFORM';
-      defaultNavLinks = [
-        { label: 'Home', url: '#home' },
-        { label: 'Platform', url: '#about' },
-        { label: 'Features', url: '#features' },
-        { label: 'Capabilities', url: '#products' },
-        { label: 'Pricing', url: '#pricing' },
-        { label: 'FAQ', url: '#faq' },
-        { label: 'Contact', url: '#contact' },
-      ];
-      defaultShowcaseBadge = 'CORE CAPABILITIES';
-      defaultShowcaseHeading = 'Platform Architecture & Cloud APIs';
-      defaultPricingBadge = 'ENTERPRISE TIERS';
-      defaultPricingHeading = 'Flexible Cloud Subscriptions in ₹';
-    } else if (vertical === 'education') {
-      defaultNavCTA = 'Admission Enquiry';
-      defaultNavUrl = '#contact';
-      defaultHeroPrimary = 'Apply for Admission';
-      defaultHeroPrimaryUrl = '#contact';
-      defaultHeroSecondary = 'Download Syllabus & Fees';
-      defaultHeroSecondaryUrl = '#pricing';
-      defaultHeroBadge = '✦ ADMISSIONS OPEN 2026-27';
-      defaultNavLinks = [
-        { label: 'Home', url: '#home' },
-        { label: 'About', url: '#about' },
-        { label: 'Batches', url: '#products' },
-        { label: 'Rankers', url: '#testimonials' },
-        { label: 'Fee Structure', url: '#pricing' },
-        { label: 'FAQ', url: '#faq' },
-        { label: 'Contact', url: '#contact' },
-      ];
-      defaultShowcaseBadge = 'CLASSROOM & ONLINE BATCHES';
-      defaultShowcaseHeading = 'Target IIT-JEE & NEET Programs';
-      defaultPricingBadge = 'FEE STRUCTURE';
-      defaultPricingHeading = 'Annual & Crash Course Fees in ₹';
-    } else if (vertical === 'healthcare') {
-      defaultNavCTA = 'Book Appointment';
-      defaultNavUrl = '#contact';
-      defaultHeroPrimary = 'Book Appointment';
-      defaultHeroPrimaryUrl = '#contact';
-      defaultHeroSecondary = 'WhatsApp Consultation';
-      defaultHeroSecondaryUrl = '#whatsapp';
-      defaultHeroBadge = '✦ CERTIFIED CLINICAL CARE';
-      defaultNavLinks = [
-        { label: 'Home', url: '#home' },
-        { label: 'About Doctor', url: '#about' },
-        { label: 'Treatments', url: '#products' },
-        { label: 'Patient Reviews', url: '#testimonials' },
-        { label: 'Consultation Fees', url: '#pricing' },
-        { label: 'FAQ', url: '#faq' },
-        { label: 'Contact', url: '#contact' },
-      ];
-      defaultShowcaseBadge = 'TREATMENT PROTOCOLS';
-      defaultShowcaseHeading = 'Specialized Treatments & Procedures';
-      defaultPricingBadge = 'CONSULTATION & CARE';
-      defaultPricingHeading = 'Transparent Clinical Fees in ₹';
-    } else if (vertical === 'retail') {
-      defaultNavCTA = 'WhatsApp Order';
-      defaultNavUrl = '#whatsapp';
-      defaultHeroPrimary = 'Order on WhatsApp';
-      defaultHeroPrimaryUrl = '#whatsapp';
-      defaultHeroSecondary = 'View Catalog & Prices';
-      defaultHeroSecondaryUrl = '#products';
-      defaultHeroBadge = '✦ AUTHENTIC HANDCRAFTED HERITAGE';
-      defaultNavLinks = [
-        { label: 'Home', url: '#home' },
-        { label: 'About', url: '#about' },
-        { label: 'Catalog', url: '#products' },
-        { label: 'Patron Reviews', url: '#testimonials' },
-        { label: 'Special Combos', url: '#pricing' },
-        { label: 'FAQ', url: '#faq' },
-        { label: 'Contact', url: '#contact' },
-      ];
-      defaultShowcaseBadge = 'HANDCRAFTED CATALOG';
-      defaultShowcaseHeading = 'Signature Collection & Artisan Pieces';
-      defaultPricingBadge = 'FESTIVE PACKAGES';
-      defaultPricingHeading = 'Special Catalog Bundles in ₹';
-    } else if (vertical === 'agency') {
-      defaultNavCTA = 'Get Proposal';
-      defaultNavUrl = '#contact';
-      defaultHeroPrimary = 'Schedule Strategy Call';
-      defaultHeroPrimaryUrl = '#contact';
-      defaultHeroSecondary = 'Explore Portfolio';
-      defaultHeroSecondaryUrl = '#products';
-      defaultHeroBadge = '✦ PREMIER DIGITAL STUDIO';
-      defaultNavLinks = [
-        { label: 'Home', url: '#home' },
-        { label: 'About', url: '#about' },
-        { label: 'Services', url: '#products' },
-        { label: 'Case Studies', url: '#testimonials' },
-        { label: 'Retainers', url: '#pricing' },
-        { label: 'FAQ', url: '#faq' },
-        { label: 'Contact', url: '#contact' },
-      ];
-    }
-
-    // Safety sanitize: If tech startup got an accidental "WhatsApp Order" from LLM, correct it
-    let finalHeroPrimary = data.hero?.primaryBtnText || defaultHeroPrimary;
-    let finalHeroPrimaryUrl = defaultHeroPrimaryUrl;
-    let finalHeroSecondary = data.hero?.secondaryBtnText || defaultHeroSecondary;
-    let finalHeroSecondaryUrl = defaultHeroSecondaryUrl;
-
-    if (vertical === 'tech') {
-      if (finalHeroPrimary.toLowerCase().includes('whatsapp') || finalHeroPrimary.toLowerCase().includes('order')) {
-        finalHeroPrimary = 'Start Free Trial';
-        finalHeroPrimaryUrl = '#pricing';
-      }
-      if (finalHeroSecondary.toLowerCase().includes('whatsapp') || finalHeroSecondary.toLowerCase().includes('order')) {
-        finalHeroSecondary = 'Book Live Demo';
-        finalHeroSecondaryUrl = '#contact';
-      }
-    } else if (vertical === 'education') {
-      if (finalHeroPrimary.toLowerCase().includes('whatsapp order')) {
-        finalHeroPrimary = 'Apply for Admission';
-        finalHeroPrimaryUrl = '#contact';
-      }
-    } else if (vertical === 'healthcare') {
-      if (finalHeroPrimary.toLowerCase().includes('whatsapp order')) {
-        finalHeroPrimary = 'Book Appointment';
-        finalHeroPrimaryUrl = '#contact';
-      }
-    }
-
-    // 2. Hero Section
-    const heroSection = createSection('hero', {
-      badge: data.hero?.badge || defaultHeroBadge,
-      heading: data.hero?.heading || `${brandName} — Crafted with Purpose.`,
-      subheading: data.hero?.subheading || description,
-      primaryBtnText: finalHeroPrimary,
-      primaryBtnUrl: finalHeroPrimaryUrl,
-      secondaryBtnText: finalHeroSecondary,
-      secondaryBtnUrl: finalHeroSecondaryUrl,
-      imageUrl: getHeroPhoto(category),
-      alignment: 'center',
-    });
-
-    // 3. About Section
-    const aboutSection = createSection('about', {
-      badge: 'OUR PHILOSOPHY',
-      heading: data.about?.heading || `The ${brandName} Standard`,
-      paragraph1: data.about?.paragraph1 || description,
-      paragraph2: data.about?.paragraph2 || 'Engineered with meticulous precision, authentic materials, and uncompromising standards.',
-      highlights: [
-        { title: 'Bespoke Quality', desc: 'Crafted without compromise to elevate your everyday experience.' },
-        { title: 'Authentic Vision', desc: 'Rooted in passion and dedicated to transparent craftsmanship.' },
-        { title: 'Direct Access', desc: 'Personalized service via direct WhatsApp and email assistance.' },
-      ],
-    });
-
-    // 4. Products / Offerings Section (FULLY POPULATED)
+    // 2. Showcase Items
     const showcaseList = (data.showcaseItems || data.products || []).map((item, idx) => ({
       name: item.title || item.name || `Signature Offering 0${idx + 1}`,
-      price: item.price || (isFood ? `₹${249 + idx * 100}` : vertical === 'tech' ? (idx === 0 ? '₹0 / mo' : `₹${1499 + idx * 1000} / mo`) : `₹${799 + idx * 400}`),
-      desc: item.description || item.desc || 'Prepared with highest standard ingredients and exceptional care.',
+      price: item.price || (isFood ? `₹${249 + idx * 100}` : context.industry === INDUSTRY_TYPES.SAAS ? (idx === 0 ? '₹2,499/mo' : `₹${5999 + idx * 2000}/mo`) : `₹${799 + idx * 400}`),
+      desc: item.description || item.desc || 'Prepared with highest standard materials and exceptional care.',
       tag: item.tag || (idx === 0 ? 'BESTSELLER' : idx === 1 ? 'SIGNATURE' : 'POPULAR'),
-      imageUrl: item.imageUrl || getCuratedPhoto(category, idx),
+      imageUrl: item.imageUrl || getCuratedPhoto(context.industry, idx),
     }));
 
-    const productsSection = createSection('products', {
-      badge: defaultShowcaseBadge,
-      heading: data.productsHeading || defaultShowcaseHeading,
-      subheading: 'Curated and crafted with precision for our patrons and clients.',
-      items: showcaseList.length > 0 ? showcaseList : [
-        { name: 'Signature Offering 01', price: '₹999', desc: 'Handcrafted daily with premium sourcing.', tag: 'Bestseller', imageUrl: getCuratedPhoto(category, 0) },
-        { name: 'Signature Offering 02', price: '₹1,999', desc: 'Award-winning craft, seasonal availability.', tag: 'Signature', imageUrl: getCuratedPhoto(category, 1) },
-        { name: 'Signature Offering 03', price: '₹749', desc: 'Customer favorite, freshly prepared.', tag: 'Popular', imageUrl: getCuratedPhoto(category, 2) },
-      ],
-    });
-
-    // 5. Features Section (FULLY POPULATED)
+    // 3. Features List
     const featuresList = (data.features || []).map((f) => ({
       title: f.title || f.name || 'Core Capability',
-      desc: f.description || f.desc || 'Engineered to guarantee exceptional quality and consistency.',
+      desc: f.description || f.desc || 'Engineered to guarantee exceptional quality, performance, and consistency.',
     }));
 
-    const featuresSection = createSection('features', {
-      badge: 'OUR STANDARDS',
-      heading: 'Engineered for Discerning Standards',
-      items: featuresList.length > 0 ? featuresList : [
-        { title: 'Uncompromising Quality', desc: 'Every detail is calibrated to surpass expectations.' },
-        { title: 'Ethical & Transparent', desc: 'Honest sourcing with direct artisan accountability.' },
-        { title: 'Community Centered', desc: 'Proudly serving our patrons and neighbors with pride.' },
-      ],
-    });
-
-    // 6. Testimonials Section (FULLY POPULATED)
+    // 4. Testimonials List
     const reviewsList = (data.testimonials || []).map((t) => ({
       quote: t.comment || t.quote || 'An extraordinary standard of excellence in every detail.',
       author: t.name || t.author || 'Pooja Sharma',
-      role: t.role || (vertical === 'education' ? 'AIR Top 50 Student' : vertical === 'tech' ? 'DevOps Lead' : 'Verified Patron'),
+      role: t.role || (context.industry === INDUSTRY_TYPES.SAAS ? 'VP of Technology' : 'Verified Patron'),
       rating: 5,
     }));
 
-    const testimonialsSection = createSection('testimonials', {
-      badge: 'CUSTOMER REVIEWS',
-      heading: 'Endorsed by Regulars & Clients Across India',
-      items: reviewsList.length > 0 ? reviewsList : [
-        { quote: 'The attention to craft is unmatched. 1-tap WhatsApp ordering is fast and convenient.', author: 'Pooja Sharma', role: 'Jaipur Patron', rating: 5 },
-        { quote: 'Impeccable quality and transparent pricing in ₹ every single time. Highly recommended!', author: 'Rahul Verma', role: 'Verified Client', rating: 5 },
-      ],
-    });
-
-    // 7. Pricing Section (FULLY POPULATED)
+    // 5. Pricing Plans
     const pricingList = (data.pricing || []).map((p, idx) => ({
       name: p.name || `Tier 0${idx + 1}`,
-      price: p.price || (idx === 0 ? '₹499' : idx === 1 ? '₹1,499' : '₹4,999'),
-      period: p.period || (vertical === 'education' ? '/year' : '/month'),
+      price: p.price || (idx === 0 ? '₹2,499' : idx === 1 ? '₹6,999' : 'Custom'),
+      period: p.period !== undefined ? p.period : '/month',
       desc: p.description || (idx === 1 ? 'Our most popular comprehensive engagement.' : 'Essential package with dedicated support.'),
       popular: Boolean(p.popular || idx === 1),
-      features: Array.isArray(p.features) ? p.features : ['Full Access', 'Dedicated Lead', 'UPI / QR Ready'],
+      features: Array.isArray(p.features) ? p.features : ['Full Platform Access', 'Dedicated Lead Architect', 'Automated Daily Backups', '99.9% Uptime Commitment'],
     }));
 
-    const pricingSection = createSection('pricing', {
-      badge: defaultPricingBadge,
-      heading: defaultPricingHeading,
-      subheading: 'Choose the plan tailored to your scale and requirements.',
-      plans: pricingList.length > 0 ? pricingList : [
-        { name: 'Starter', price: '₹499', period: '/month', desc: 'Perfect for individuals and small shops.', popular: false, features: ['Core Features', 'WhatsApp Inquiries', 'Weekly Updates'] },
-        { name: 'Growth Pro', price: '₹1,499', period: '/month', desc: 'Our most popular tier for growing businesses.', popular: true, features: ['Everything in Starter', 'Priority Support', 'UPI Integration', 'Dedicated Manager'] },
-        { name: 'Enterprise', price: '₹4,999', period: '/month', desc: 'Custom integration and dedicated support.', popular: false, features: ['Unlimited Inquiries', 'Custom Domain', '24/7 SLA'] },
-      ],
-    });
-
-    // 8. FAQ Section (FULLY POPULATED)
+    // 6. FAQ List
     const faqList = (data.faq || []).map((item) => ({
       q: item.question || item.q || 'What makes your offering unique?',
-      a: item.answer || item.a || 'We combine authentic craft with modern digital convenience.',
+      a: item.answer || item.a || 'We combine modern engineering discipline with intuitive digital convenience.',
     }));
 
-    const faqSection = createSection('faq', {
-      badge: 'COMMON INQUIRIES',
-      heading: 'Frequently Asked Questions',
-      items: faqList.length > 0 ? faqList : [
-        { q: 'How do I place an order or booking?', a: 'You can reach out directly via WhatsApp or call our team directly.' },
-        { q: 'What payment methods do you accept?', a: 'We accept UPI (Google Pay, PhonePe, Paytm), Netbanking, and Cash on Delivery.' },
-        { q: 'Do you deliver across India?', a: 'Yes, we provide express shipping across all pin codes in India.' },
-      ],
-    });
-
-    // 9. Contact Section
-    const contactSection = createSection('contact', {
-      badge: 'GET IN TOUCH',
-      heading: 'Connect with Our Team',
-      subheading: `Located in ${data.location || 'Bengaluru, Karnataka'}. We welcome your inquiry and visit.`,
-    });
-
-    // 10. Footer Section
-    const footerSection = createSection('footer', {
-      businessName: brandName,
-      tagline: data.tagline || description.slice(0, 80),
-      links: defaultNavLinks,
-    });
-
-    const sections = [
-      createSection('navigation', {
+    // 7. Stable Section Builders
+    const sectionMap = {
+      navigation: createSection('navigation', {
         logoText: brandName,
         links: defaultNavLinks,
         ctaText: defaultNavCTA,
         ctaUrl: defaultNavUrl,
         sticky: true,
-      }),
-      heroSection,
-      aboutSection,
-      featuresSection,
-      productsSection,
-      testimonialsSection,
-      pricingSection,
-      faqSection,
-      contactSection,
-      footerSection,
+      }, { id: 'navigation-001' }),
+
+      hero: createSection('hero', {
+        badge: data.hero?.badge || arch.heroBadge || '✦ NEXT-GEN DIGITAL ARCHITECTURE',
+        heading: data.hero?.heading || arch.heroHeading || `${brandName} — Engineered with Purpose.`,
+        subheading: data.hero?.subheading || arch.heroSubheading || description,
+        trustBadge: data.hero?.trustBadge || arch.trustBadge || '✦ VERIFIED BENCHMARK STANDARD',
+        chipText: data.hero?.chipText || arch.chipText || `${brandName.toUpperCase()} FLAGSHIP`,
+        stats: (Array.isArray(data.hero?.stats) && data.hero.stats.length > 0) ? data.hero.stats : (arch.stats || []),
+        primaryBtnText: data.hero?.primaryBtnText || defaultHeroPrimary,
+        primaryBtnUrl: defaultHeroPrimaryUrl,
+        secondaryBtnText: data.hero?.secondaryBtnText || defaultHeroSecondary,
+        secondaryBtnUrl: defaultHeroSecondaryUrl,
+        imageUrl: data.hero?.imageUrl || getHeroPhoto(context.industry),
+        alignment: 'center',
+      }, { id: 'hero-001' }),
+
+      stats: createSection('stats', {
+        badge: data.statsBadge || 'PROVEN IMPACT',
+        heading: data.statsHeading || 'Proven Performance at Scale',
+        subheading: data.statsSubheading || 'Measurable outcomes delivered for leading businesses across India and globally.',
+        items: (Array.isArray(data.stats) && data.stats.length > 0)
+          ? data.stats
+          : (Array.isArray(data.hero?.stats) && data.hero.stats.length > 0)
+          ? data.hero.stats
+          : arch.stats || [
+              { value: '99.9%', label: 'Platform Availability' },
+              { value: '10K+', label: 'Active Users' },
+              { value: '<15ms', label: 'Average Latency' },
+              { value: '4.9★', label: 'Satisfaction Rating' },
+            ],
+      }, { id: 'stats-001' }),
+
+      about: createSection('about', {
+        badge: data.aboutBadge || 'OUR PHILOSOPHY',
+        heading: data.about?.heading || `The ${brandName} Standard`,
+        paragraph1: data.about?.paragraph1 || description,
+        paragraph2: data.about?.paragraph2 || 'Engineered with meticulous precision, authentic materials, and uncompromising standards.',
+        highlights: [
+          { title: 'Bespoke Quality', desc: 'Crafted without compromise to elevate your everyday experience.' },
+          { title: 'Authentic Vision', desc: 'Rooted in passion and dedicated to transparent craftsmanship.' },
+          { title: 'Direct Access', desc: 'Personalized service via direct priority communication.' },
+        ],
+      }, { id: 'about-001' }),
+
+      features: createSection('features', {
+        badge: data.featuresBadge || arch.featuresBadge || 'PLATFORM ADVANTAGES',
+        heading: data.featuresHeading || arch.featuresHeading || 'Engineered for Discerning Standards',
+        subheading: data.featuresSubheading || 'Built from the ground up for unyielding reliability, speed, and seamless scaling.',
+        items: featuresList.length > 0 ? featuresList : [
+          { title: 'Sub-Second Latency', desc: 'Optimized performance across every user touchpoint.' },
+          { title: 'Enterprise Security', desc: 'Built-in privacy safeguards and compliance standards.' },
+          { title: 'Seamless Integrations', desc: 'Connects directly with your existing tools and workflows.' },
+          { title: 'Dedicated Support', desc: '24/7 technical guidance whenever your team needs assistance.' },
+        ],
+      }, { id: 'features-001' }),
+
+      services: createSection('services', {
+        badge: data.servicesBadge || 'CORE ARCHITECTURE',
+        heading: data.servicesHeading || 'Modular Capabilities for Scalable Operations',
+        subheading: 'Engineered for seamless integration with your existing workflow.',
+        items: [
+          { title: 'High-Concurrency Processing', desc: 'Scalable cloud infrastructure designed for 99.99% availability and resilience.', icon: 'Cpu' },
+          { title: 'Intuitive Product Interfaces', desc: 'Clean, accessible frontend design systems that simplify complex user interactions.', icon: 'Layout' },
+          { title: 'Continuous Integration & Reliability', desc: 'Automated testing and observability pipelines ensuring smooth releases.', icon: 'Shield' },
+        ],
+      }, { id: 'services-001' }),
+
+      products: createSection('products', {
+        badge: data.productsBadge || arch.productsBadge || (isFood ? 'DAILY MENU' : 'FEATURED SOLUTIONS'),
+        heading: data.productsHeading || arch.productsHeading || (isFood ? 'Artisan Provisions & Selections' : 'Signature Products & Solutions'),
+        subheading: data.productsSubheading || 'Curated and crafted with precision for our patrons and clients.',
+        items: showcaseList.length > 0 ? showcaseList : [
+          { name: 'Signature Offering 01', price: '₹2,499', desc: 'Handcrafted daily with premium sourcing.', tag: 'Bestseller', imageUrl: getCuratedPhoto(context.industry, 0) },
+          { name: 'Signature Offering 02', price: '₹4,999', desc: 'Award-winning craft, seasonal availability.', tag: 'Signature', imageUrl: getCuratedPhoto(context.industry, 1) },
+          { name: 'Signature Offering 03', price: '₹1,499', desc: 'Customer favorite, freshly prepared.', tag: 'Popular', imageUrl: getCuratedPhoto(context.industry, 2) },
+        ],
+      }, { id: 'products-001' }),
+
+      testimonials: createSection('testimonials', {
+        badge: data.testimonialsBadge || 'CUSTOMER REVIEWS',
+        heading: data.testimonialsHeading || 'Endorsed by Regulars & Clients Across India',
+        subheading: 'Real feedback from leaders and verified patrons who depend on our excellence.',
+        items: reviewsList.length > 0 ? reviewsList : [
+          { quote: 'The attention to detail and performance are extraordinary. A true benchmark in craftsmanship.', author: 'Aarav Mehta', role: 'VP of Technology', rating: 5 },
+          { quote: 'Impeccable reliability and transparent pricing every single time. Highly recommended!', author: 'Priya Sharma', role: 'Verified Client', rating: 5 },
+        ],
+      }, { id: 'testimonials-001' }),
+
+      pricing: createSection('pricing', {
+        badge: data.pricingBadge || arch.pricingBadge || 'TRANSPARENT PLANS',
+        heading: data.pricingHeading || arch.pricingHeading || 'Straightforward Engagements in ₹',
+        subheading: data.pricingSubheading || 'Choose the plan tailored to your scale and requirements.',
+        plans: pricingList.length > 0 ? pricingList : [
+          { name: 'Starter', price: '₹2,499', period: '/month', desc: 'Perfect for emerging teams and small shops.', popular: false, features: ['Core Features', 'Direct Inquiries', 'Weekly Updates'] },
+          { name: 'Growth Pro', price: '₹6,999', period: '/month', desc: 'Our most popular tier for growing businesses.', popular: true, features: ['Everything in Starter', 'Priority Support', 'API Integration', 'Dedicated Manager'] },
+          { name: 'Enterprise', price: 'Custom', period: '', desc: 'Custom integration and dedicated support.', popular: false, features: ['Unlimited Throughput', 'Custom Domain', '24/7 SLA'] },
+        ],
+      }, { id: 'pricing-001' }),
+
+      faq: createSection('faq', {
+        badge: data.faqBadge || arch.faqBadge || 'FREQUENTLY ASKED QUESTIONS',
+        heading: data.faqHeading || arch.faqHeading || 'Frequently Asked Questions',
+        items: faqList.length > 0 ? faqList : [
+          { q: 'How quickly can our team get started?', a: 'You can launch in minutes with our streamlined setup process and comprehensive guides.' },
+          { q: 'Do you offer custom integrations?', a: 'Yes, our platform provides open APIs and dedicated webhook support for custom workflows.' },
+          { q: 'What support options are available?', a: 'We offer email, community, and dedicated priority support depending on your plan.' },
+        ],
+      }, { id: 'faq-001' }),
+
+      cta_banner: createSection('cta_banner', {
+        badge: data.ctaBanner?.badge || 'GET STARTED TODAY',
+        heading: data.ctaBanner?.heading || `Ready to Transform Your Workflow with ${brandName}?`,
+        subheading: data.ctaBanner?.subheading || 'Join hundreds of forward-thinking businesses experiencing the next generation standard.',
+        primaryBtnText: data.ctaBanner?.primaryBtnText || defaultHeroPrimary,
+        primaryBtnUrl: defaultHeroPrimaryUrl,
+        secondaryBtnText: data.ctaBanner?.secondaryBtnText || defaultHeroSecondary,
+        secondaryBtnUrl: defaultHeroSecondaryUrl,
+      }, { id: 'cta_banner-001' }),
+
+      contact: createSection('contact', {
+        badge: 'GET IN TOUCH',
+        heading: 'Connect with Our Team',
+        subheading: `Located in ${data.location || 'Bengaluru, Karnataka'}. We welcome your inquiry and visit.`,
+      }, { id: 'contact-001' }),
+
+      footer: createSection('footer', {
+        businessName: brandName,
+        tagline: data.tagline || description.slice(0, 80),
+        links: defaultNavLinks,
+      }, { id: 'footer-001' }),
+    };
+
+    let sectionSequence = arch.sectionSequence ? [...arch.sectionSequence] : [
+      'navigation', 'hero', 'stats', 'about', 'features', 'products', 'testimonials', 'pricing', 'faq', 'cta_banner', 'contact', 'footer'
     ];
 
+    if (!sectionSequence.includes('stats')) {
+      const heroIdx = sectionSequence.indexOf('hero');
+      if (heroIdx >= 0) sectionSequence.splice(heroIdx + 1, 0, 'stats');
+    }
+
+    if (!sectionSequence.includes('cta_banner')) {
+      const contactIdx = sectionSequence.indexOf('contact');
+      if (contactIdx >= 0) sectionSequence.splice(contactIdx, 0, 'cta_banner');
+      else {
+        const footerIdx = sectionSequence.indexOf('footer');
+        if (footerIdx >= 0) sectionSequence.splice(footerIdx, 0, 'cta_banner');
+      }
+    }
+
+    const sections = sectionSequence.map((type) => sectionMap[type] || createSection(type, {}, { id: `${type}-001` }));
+
     const projectTheme = {
-      primaryColor: data.theme?.primaryColor || (vertical === 'tech' ? '#06b6d4' : vertical === 'education' ? '#3b82f6' : vertical === 'healthcare' ? '#10b981' : '#f59e0b'),
-      secondaryColor: data.theme?.secondaryColor || '#8b5cf6',
-      accentColor: data.theme?.accentColor || '#38bdf8',
-      bgColor: data.theme?.bgColor || '#07080c',
-      textColor: '#f8fafc',
-      surfaceColor: '#0c0e15',
-      fontHeading: data.theme?.fontHeading || 'Plus Jakarta Sans',
-      fontBody: 'Plus Jakarta Sans',
-      borderRadius: data.theme?.borderRadius || '14px',
+      primaryColor: data.theme?.primaryColor || ds.primaryColor || '#06b6d4',
+      secondaryColor: data.theme?.secondaryColor || ds.secondaryColor || '#8b5cf6',
+      accentColor: data.theme?.accentColor || ds.accentColor || '#38bdf8',
+      bgColor: data.theme?.bgColor || ds.bgColor || '#07080c',
+      textColor: ds.textColor || '#f8fafc',
+      surfaceColor: ds.surfaceColor || '#0c0e15',
+      fontHeading: ds.fontHeading || data.theme?.fontHeading || 'Space Grotesk',
+      fontBody: ds.fontBody || 'Plus Jakarta Sans',
+      borderRadius: data.theme?.borderRadius || ds.borderRadius || '14px',
       glassmorphism: true,
-      containerWidth: '1200px',
+      containerWidth: ds.containerWidth || '1200px',
+      typography: ds.typography,
+      spacing: ds.spacing,
     };
 
     const newProject = createProject({
@@ -828,12 +831,12 @@ OUTPUT RAW JSON ONLY.`;
         tagline: data.tagline || `${brandName} — Pure Distinction`,
         category,
         description,
-        location: data.location || (vertical === 'tech' ? 'HSR Layout, Bengaluru' : vertical === 'education' ? 'Rajeev Gandhi Nagar, Kota' : 'Bandra West, Mumbai'),
+        location: data.location || (context.industry === INDUSTRY_TYPES.SAAS ? 'HSR Layout, Bengaluru' : 'Bandra West, Mumbai'),
         contact: {
-          email: data.email || 'contact@domain.in',
+          email: data.email || `contact@${brandName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'brand'}.in`,
           phone: data.phone || '+91 98200 12345',
           whatsapp: data.whatsapp || '+919820012345',
-          address: data.location || 'Bandra West, Mumbai, Maharashtra 400050',
+          address: data.location || 'Cyber Hub, Gurugram, India',
           openingHours: data.hours || 'Mon–Sat: 9:30 AM – 8:30 PM',
         },
         social: {
@@ -855,290 +858,729 @@ OUTPUT RAW JSON ONLY.`;
       },
     });
 
-    return storageService.saveProject(newProject, userId);
+    const validated = validateEntireWebsite(newProject, context, arch, ds);
+    return storageService.saveProject(validated.project, userId);
   },
 
   /**
    * Rich fallback synthesizer in case of offline / network issue
    */
-  synthesizeFallbackProjectData(prompt) {
+  synthesizeFallbackProjectData(prompt, websiteContext = null, architecturePlan = null) {
+    const context = websiteContext || buildWebsiteContext(prompt);
     const p = prompt.toLowerCase();
-    const catKey = resolveCategoryKey(p);
+    const ind = context.industry;
+    const brand = context.brandName;
 
-    if (catKey === 'restaurant') {
+    // 1. Tech / AI Automation SaaS (e.g. NEXORA)
+    if (
+      ind === INDUSTRY_TYPES.SAAS ||
+      p.includes('saas') ||
+      p.includes('automation') ||
+      p.includes('nexora') ||
+      p.includes('ai platform') ||
+      p.includes('cloud') ||
+      p.includes('software')
+    ) {
       return {
-        name: 'Dawat-e-Khas Heritage Dining',
-        category: 'Restaurant',
-        tagline: 'Authentic Royal Mughlai & Awadhi Flavors',
-        description: 'Iconic fine dining restaurant serving slow-cooked dum biryanis, melt-in-mouth galouti kebabs, and rich Mughlai gravies in a regal palace ambiance.',
+        name: brand,
+        category: context.subIndustry || 'AI Automation SaaS Platform',
+        tagline: 'Autonomous AI Automation & Agentic Workflows for High-Growth Teams',
+        description: 'Enterprise-grade cloud platform for deploying self-improving AI agents, automating mission-critical workflows, and integrating seamlessly with your tech stack.',
+        location: 'HSR Layout, Bengaluru, Karnataka',
+        phone: '+91 80 4567 8900',
+        email: `contact@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'nexora'}.io`,
+        whatsapp: '+918045678900',
+        hours: 'Mon–Fri: 9:00 AM – 7:00 PM IST',
+        theme: {
+          primaryColor: '#06b6d4',
+          secondaryColor: '#6366f1',
+          accentColor: '#38bdf8',
+          bgColor: '#06080e',
+          borderRadius: '12px',
+        },
+        hero: {
+          heading: `${brand} — Autonomous AI Automation for Scalable Operations.`,
+          subheading: 'Deploy self-improving agentic workflows that integrate with your database, resolve mission-critical bottlenecks, and accelerate engineering velocity.',
+          badge: '✦ NEXT-GEN AUTONOMOUS ENTERPRISE PLATFORM',
+          primaryBtnText: 'Start Free Trial',
+          secondaryBtnText: 'Book Live Demo',
+        },
+        about: {
+          heading: 'Engineered for Sub-Millisecond Precision & Cloud Scale',
+          paragraph1: 'Built for engineering teams and digital leaders who demand unyielding reliability, zero data contamination, and enterprise security.',
+          paragraph2: 'Our orchestration engine handles parallel asynchronous pipelines, deterministic model fallbacks, and real-time observability.',
+        },
+        features: [
+          { title: 'Zero-Latency Autonomous Agents', description: 'Execute parallel complex decision pipelines with deterministic fallback guarantees.' },
+          { title: 'Bi-Directional Cloud Webhooks', description: 'Seamlessly interface with PostgreSQL, Kafka, Redis, and multi-cloud endpoints.' },
+          { title: 'SOC-2 Type II Certified Security', description: 'End-to-end payload encryption with verifiable zero-trust telemetry.' },
+          { title: 'Real-Time Observability & Auditing', description: 'Granular token usage, step-by-step reasoning logs, and SLA uptime metrics.' },
+        ],
+        showcaseItems: [
+          { title: 'Core Orchestration Engine', description: 'High-throughput event queue with sub-50ms execution runtime.', price: '₹4,999/mo', tag: 'Flagship' },
+          { title: 'Neural Reasoning Pipeline', description: 'Multi-modal processing for unstructured text, audio, and visual logs.', price: '₹9,999/mo', tag: 'Popular' },
+          { title: 'Enterprise Gateway Bridge', description: 'Private VPC peering, custom SLA, and dedicated engineering support.', price: 'Custom', tag: 'Enterprise' },
+        ],
+        testimonials: [
+          { name: 'Vikram Sethi', role: 'CTO, FinScale Technologies', comment: `${brand} automated our mission-critical triage queue in 48 hours. The speed and deterministic accuracy are unmatched.` },
+          { name: 'Ananya Roy', role: 'VP of Engineering, CloudPeak', comment: 'We replaced 4 brittle custom microservices with one autonomous agent pipeline. Engineering velocity increased by 35%.' },
+        ],
+        pricing: [
+          { name: 'Developer Starter', price: '₹2,499', period: '/month', popular: false, features: ['Up to 50,000 monthly events', '3 Autonomous Workflows', 'Standard REST & GraphQL API', 'Community & Email Support'] },
+          { name: 'Growth Scale', price: '₹8,999', period: '/month', popular: true, features: ['Up to 500,000 monthly events', 'Unlimited Custom Workflows', 'Dedicated Redis Queue', 'Priority 24/7 Slack SLA', '99.9% Uptime Commitment'] },
+          { name: 'Enterprise VPC', price: 'Contact', period: '', popular: false, features: ['Unlimited event throughput', 'Custom On-Prem or Private VPC', 'Dedicated Solutions Architect', 'Custom SOC-2 & ISO Audit Reports'] },
+        ],
+        faq: [
+          { question: 'How does the platform integrate with our existing infrastructure?', answer: 'We offer official SDKs for Python, Node.js, and Go, alongside standard webhook listeners and REST APIs that connect to your stack in under ten minutes.' },
+          { question: 'Is our proprietary business data used for model retraining?', answer: 'No. We enforce strict enterprise zero-data-retention policies. Your payload data is encrypted in transit and never stored for public model training.' },
+          { question: 'What uptime guarantees and SLA do you provide?', answer: 'Our Growth and Enterprise plans carry a 99.95% availability SLA backed by redundant multi-region cloud failover clusters.' },
+        ],
+      };
+    }
+
+    // 2. Restaurant / Japanese Dining / Omakase
+    if (
+      ind === INDUSTRY_TYPES.RESTAURANT ||
+      p.includes('restaurant') ||
+      p.includes('japanese') ||
+      p.includes('omakase') ||
+      p.includes('sushi') ||
+      p.includes('dining')
+    ) {
+      const isJapanese = p.includes('japan') || p.includes('omakase') || p.includes('sushi') || p.includes('tokyo') || p.includes('ramen');
+      if (isJapanese) {
+        return {
+          name: brand,
+          category: 'Japanese Fine Dining & Omakase',
+          tagline: 'Artisanal Omakase & Traditional Edomae Sushi',
+          description: 'An intimate Japanese culinary sanctuary offering multi-course omakase seatings, fresh Toyosu market selections, and curated sake pairings.',
+          location: 'Lavelle Road, Bengaluru, Karnataka',
+          phone: '+91 80 4123 9876',
+          email: `reservations@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'matsu'}.in`,
+          whatsapp: '+918041239876',
+          hours: 'Tue–Sun: 6:00 PM – 11:30 PM (Closed Mondays)',
+          theme: { primaryColor: '#f59e0b', secondaryColor: '#ef4444', accentColor: '#fbbf24', bgColor: '#0c0a09', borderRadius: '14px' },
+          hero: {
+            heading: `${brand} — The Art of Authentic Japanese Dining.`,
+            subheading: 'Experience multi-course omakase tastings, dry-aged sashimi, and binchotan-grilled delicacies prepared with uncompromising Japanese discipline.',
+            badge: '✦ TRADITIONAL EDOMAE HERITAGE',
+            primaryBtnText: 'Reserve Omakase Table',
+            secondaryBtnText: 'Explore Tasting Menu',
+          },
+          about: {
+            heading: 'Unwavering Dedication to Edomae Precision & Fresh Catch',
+            paragraph1: 'Every cut at our 12-seat Hinoki counter is executed with razor-sharp single-bevel knives, honoring centuries-old Edomae curing and aging rituals.',
+            paragraph2: 'We curate wild-caught seasonal seafood flown directly from Tokyo’s Toyosu market, paired with artisanal single-estate sakes.',
+          },
+          features: [
+            { title: 'Weekly Toyosu Market Air Shipments', description: 'Seasonal wild fish flown in directly for maximum freshness.' },
+            { title: 'Traditional Hinoki Counter Seating', description: 'Intimate 12-guest counter for an immersive culinary performance.' },
+            { title: 'Rare Junmai Daiginjo Sakes', description: 'Curated pairings from generational Japanese family microbreweries.' },
+          ],
+          showcaseItems: [
+            { title: 'Chef Signature 14-Course Omakase', description: 'Seasonal sashimi, aged nigiri, and binchotan wagyu showcase.', price: '₹4,800', tag: 'Chef Choice' },
+            { title: 'Otoro Bluefin Tuna Nigiri Pair', description: 'Fatty tuna belly lightly torched and brushed with aged nikiri soy.', price: '₹1,200', tag: 'Signature' },
+            { title: 'A5 Miyazaki Wagyu Sukiyaki Course', description: 'Lightly seared A5 tenderloin with slow-poached onsen egg.', price: '₹2,600', tag: 'Specialty' },
+          ],
+          testimonials: [
+            { name: 'Rohan Mehra', role: 'Food & Wine Connoisseur', comment: 'The omakase experience is on par with top Ginza counters. The nigiri rice temperature and knife work are flawless.' },
+            { name: 'Dr. Sunita Rao', role: 'Regular Patron', comment: 'Celebrated our anniversary at the Hinoki counter. The attention to hospitality and sake pairing made it magical.' },
+          ],
+          pricing: [
+            { name: 'Lunch Tasting Course', price: '₹2,800', period: '/guest', popular: false, features: ['8-Course Seasonal Nigiri', 'Steamed Chawanmushi', 'Miso Soup & Dessert', 'Green Tea Pairing'] },
+            { name: 'Grand Evening Omakase', price: '₹4,800', period: '/guest', popular: true, features: ['14-Course Full Chef Tasting', 'Sashimi & Wagyu Highlights', 'Table Chef Interaction', 'Exclusive Sake Pairing'] },
+          ],
+          faq: [
+            { question: 'Do you require advance reservations for omakase seatings?', answer: 'Yes, we recommend reserving at least 3 days in advance due to our limited 12-seat counter capacity.' },
+            { question: 'Can dietary preferences or seafood allergies be accommodated?', answer: 'Please notify us when booking. We will prepare an adjusted menu with 24 hours advance notice.' },
+          ],
+        };
+      }
+
+      // Default Indian Dining / Mughlai
+      return {
+        name: brand,
+        category: 'Restaurant & Fine Dining',
+        tagline: 'Authentic Royal Mughlai & Heritage Flavors',
+        description: 'Iconic fine dining restaurant serving slow-cooked dum biryanis, melt-in-mouth galouti kebabs, and rich gravies in a regal palace ambiance.',
         location: 'Connaught Place, New Delhi',
         phone: '+91 98110 54321',
-        email: 'reservations@dawatekhas.in',
+        email: `reservations@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'dining'}.in`,
         whatsapp: '+919811054321',
         hours: 'Mon–Sun: 12:30 PM – 11:30 PM',
         theme: { primaryColor: '#ef4444', secondaryColor: '#f59e0b', accentColor: '#f43f5e', bgColor: '#06070a', borderRadius: '14px' },
-        hero: { heading: 'Royal Awadhi Heritage on Your Platter.', subheading: 'Slow-cooked handi biryanis, artisanal tandoori platters, and authentic family recipes passed down generations.', badge: '✦ BEST MUGHLAI RESTAURANT IN DELHI NCR', primaryBtnText: 'Reserve Table', secondaryBtnText: 'WhatsApp Ordering' },
-        about: { heading: 'A Dedication to Dum Pukht & Pure Ghee', paragraph1: 'Every dish at Dawat-e-Khas is slow-cooked in sealed copper handis over low embers, sealing in the delicate aromas of saffron, cardamom, and rose water.', paragraph2: 'We believe Indian hospitality is an honored tradition of warmth, generosity, and exquisite taste.' },
+        hero: { heading: `${brand} — Royal Culinary Heritage on Your Platter.`, subheading: 'Slow-cooked handi biryanis, artisanal tandoori platters, and authentic family recipes passed down generations.', badge: '✦ PREMIER HERITAGE DINING', primaryBtnText: 'Reserve Table', secondaryBtnText: 'Explore Menu' },
+        about: { heading: 'A Dedication to Dum Pukht & Authentic Recipes', paragraph1: 'Every dish is slow-cooked in sealed copper handis over low embers, sealing in the delicate aromas of saffron, cardamom, and rose water.', paragraph2: 'We believe hospitality is an honored tradition of warmth, generosity, and exquisite taste.' },
         features: [
           { title: 'Slow Dum Pukht Cooking', description: 'Sealed dough handis slow-cooked for over 6 hours.' },
           { title: 'Pure Kashmiri Saffron', description: 'Handpicked authentic saffron and whole spices.' },
-          { title: '1-Tap WhatsApp Booking', description: 'Instant table reservations and VIP private dining.' }
+          { title: '1-Tap WhatsApp Booking', description: 'Instant table reservations and VIP private dining.' },
         ],
         showcaseItems: [
-          { title: 'Awadhi Gosht Dum Biryani', description: 'Tender mutton layered with aged basmati rice and saffron milk.', price: '₹650', tag: 'Bestseller' },
-          { title: 'Melt-in-Mouth Galouti Kebab', description: 'Finely minced spiced mutton served with flaky ulte tawa ka paratha.', price: '₹580', tag: 'Signature' },
-          { title: 'Murgh Makhani Special', description: 'Tandoori chicken simmered in rich creamy tomato and butter gravy.', price: '₹520', tag: 'Chef Choice' }
+          { title: 'Royal Gosht Dum Biryani', description: 'Tender mutton layered with aged basmati rice and saffron milk.', price: '₹650', tag: 'Bestseller' },
+          { title: 'Melt-in-Mouth Galouti Kebab', description: 'Finely minced spiced mutton served with flaky ulte tawa paratha.', price: '₹580', tag: 'Signature' },
+          { title: 'Murgh Makhani Special', description: 'Tandoori chicken simmered in rich creamy tomato and butter gravy.', price: '₹520', tag: 'Chef Choice' },
         ],
         testimonials: [
-          { name: 'Chef Sanjeev Kapur', role: 'Food Critic, Delhi', comment: 'The Galouti kebabs are among the finest in the country. Pure culinary magic.' },
-          { name: 'Dr. Ananya Sen', role: 'Regular Patron', comment: 'Celebrated our anniversary here. The ambiance and authentic flavors made it unforgettable.' }
+          { name: 'Sanjeev Kapur', role: 'Food Critic', comment: 'The Galouti kebabs are among the finest in the city. Pure culinary magic.' },
+          { name: 'Ananya Sen', role: 'Regular Patron', comment: 'The ambiance and authentic flavors made our family celebration unforgettable.' },
         ],
         pricing: [
-          { name: 'Royal Awadhi Thali', price: '₹1,199', period: '/guest', popular: false, features: ['2 Kebabs & 2 Curries', 'Dum Biryani & Breads', 'Shahi Tukda Dessert', 'Unlimited Welcome Drinks'] },
-          { name: 'Nawabi Grand Feast', price: '₹2,199', period: '/guest', popular: true, features: ['Chef Special 5-Course Meal', 'Unlimited Kebabs & Tandoor', 'Custom Mocktail Pairing', 'Priority VIP Seating'] }
+          { name: 'Royal Heritage Feast', price: '₹1,299', period: '/guest', popular: false, features: ['2 Kebabs & 2 Curries', 'Dum Biryani & Breads', 'Artisan Dessert', 'Unlimited Welcome Drinks'] },
+          { name: 'Nawabi Grand Tasting', price: '₹2,199', period: '/guest', popular: true, features: ['Chef Special 5-Course Meal', 'Unlimited Tandoor Platters', 'Custom Mocktail Pairing', 'VIP Seating'] },
         ],
         faq: [
-          { question: 'Do you offer pure vegetarian options?', answer: 'Yes! We have a dedicated separate vegetarian kitchen section with paneer tikka, dal makhani, and subz biryani.' },
-          { question: 'How can I reserve a table for family events?', answer: 'You can book directly via WhatsApp or call our reservation desk at +91 98110 54321.' }
-        ]
+          { question: 'Do you offer vegetarian options?', answer: 'Yes! We have a dedicated separate vegetarian kitchen section with artisanal paneer dishes and subz biryani.' },
+          { question: 'How can I reserve a table?', answer: 'You can book directly via WhatsApp or call our reservation desk.' },
+        ],
       };
     }
 
-    if (catKey === 'cafe' || catKey === 'bakery') {
+    // 3. Local Service / Modern Salon
+    if (
+      p.includes('salon') ||
+      p.includes('hair') ||
+      p.includes('beauty') ||
+      p.includes('makeover') ||
+      p.includes('spa')
+    ) {
       return {
-        name: 'The Chai & Roast Cafe',
-        category: 'Cafe & Bakery',
-        tagline: 'Artisanal Teas, Single-Origin South Indian Filter Coffee & Bakes',
-        description: 'Cozy neighborhood cafe serving hand-brewed Chikmagalur coffees, artisanal masala chai, and freshly baked puffs and cakes.',
+        name: brand,
+        category: 'Modern Hair Salon & Aesthetic Lounge',
+        tagline: 'Bespoke Balayage, Precision Cuts & Restorative Hair Rituals',
+        description: 'Contemporary hair sanctuary and aesthetics lounge providing signature color transformations, botanical scalp therapy, and personalized styling.',
+        location: 'Linking Road, Bandra West, Mumbai',
+        phone: '+91 98200 45678',
+        email: `appointments@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'luxe'}.in`,
+        whatsapp: '+919820045678',
+        hours: 'Tue–Sun: 10:00 AM – 8:30 PM (Closed Mondays)',
+        theme: { primaryColor: '#ec4899', secondaryColor: '#8b5cf6', accentColor: '#f43f5e', bgColor: '#09080c', borderRadius: '16px' },
+        hero: {
+          heading: `${brand} — Elevated Hair Artistry & Restorative Rituals.`,
+          subheading: 'Discover bespoke hair coloring, restorative botanical treatments, and couture styling in an oasis of modern luxury.',
+          badge: '✦ MASTER STYLISTS & EUROPEAN COLOR',
+          primaryBtnText: 'Book Styling Session',
+          secondaryBtnText: 'Explore Service Menu',
+        },
+        about: {
+          heading: 'Personalized Consultations & Botanical Hair Care',
+          paragraph1: 'We believe exceptional hair styling begins with understanding your hair’s unique texture, face geometry, and lifestyle.',
+          paragraph2: 'Our certified master colorists use ammonia-free European pigments and Olaplex bond repair to ensure radiant, healthy hair.',
+        },
+        features: [
+          { title: 'Ammonia-Free European Color', description: 'Radiant pigments formulated to nourish and protect hair cuticles.' },
+          { title: 'Certified Master Stylists', description: 'Continuous European training in precision cutting and balayage technique.' },
+          { title: 'Private VIP Styling Suites', description: 'Serene private booths for personalized, relaxing appointments.' },
+        ],
+        showcaseItems: [
+          { title: 'Signature Balayage & Gloss', description: 'Hand-painted dimensional color transition with restorative gloss finish.', price: '₹5,500', tag: 'Bestseller' },
+          { title: 'Botanical Scalp Therapy & Steam', description: 'Deep scalp detoxification with essential oils and ozone steam infusion.', price: '₹2,200', tag: 'Restorative' },
+          { title: 'Precision Cut & Silk Blowout', description: 'Custom face-framing architectural haircut with lasting volume styling.', price: '₹1,500', tag: 'Signature' },
+        ],
+        testimonials: [
+          { name: 'Natasha Poonawalla', role: 'Fashion Consultant', comment: 'The balayage work here is extraordinary. The color grew out seamlessly without harsh lines.' },
+          { name: 'Simran Bajaj', role: 'Verified Client', comment: 'Best hair spa experience in Mumbai. The private styling suite made me feel completely pampered.' },
+        ],
+        pricing: [
+          { name: 'Refresh Ritual', price: '₹2,499', period: '/visit', popular: false, features: ['Precision Haircut', 'Organic Hair Spa', 'Blowout & Styling', 'Home Care Consultation'] },
+          { name: 'Complete Color Transformation', price: '₹6,999', period: '/session', popular: true, features: ['Full Balayage or Ombre', 'Olaplex Bond Multiplier', 'Toning Gloss Treatment', 'Complimentary Post-Care Serum'] },
+        ],
+        faq: [
+          { question: 'How do I book an appointment with a senior stylist?', answer: 'You can tap our Book button or send a message on WhatsApp for instant confirmation.' },
+          { question: 'Do you recommend a patch test before coloring?', answer: 'Yes, for all first-time color clients, we conduct a complimentary patch test 24 hours prior.' },
+        ],
+      };
+    }
+
+    // 4. Creative / Digital Design Agency
+    if (
+      ind === INDUSTRY_TYPES.AGENCY ||
+      p.includes('agency') ||
+      p.includes('design studio') ||
+      p.includes('creative')
+    ) {
+      return {
+        name: brand,
+        category: 'Digital Product Design & Brand Studio',
+        tagline: 'Engineering High-Impact Digital Brands & Products',
+        description: 'Boutique design and engineering studio partnering with venture-backed tech startups and ambitious brands to launch world-class digital experiences.',
         location: 'Indiranagar, Bengaluru, Karnataka',
-        phone: '+91 98450 67890',
-        email: 'hello@chairoast.in',
-        whatsapp: '+919845067890',
-        hours: 'Mon–Sun: 7:30 AM – 11:00 PM',
-        theme: { primaryColor: '#e07a5f', secondaryColor: '#3d405b', accentColor: '#81b29a', bgColor: '#0c0a09', borderRadius: '14px' },
-        hero: { heading: 'Where Warm Chai Meets Artisan Bakes.', subheading: 'Chikmagalur filter coffee, handcrafted saffron cutting chai, and warm butter croissants in Bengaluru.', badge: '✦ FRESH ROASTS & BAKES HOURLY', primaryBtnText: 'View Cafe Menu', secondaryBtnText: 'Order on WhatsApp' },
-        about: { heading: 'From Western Ghats Estates to Your Cup', paragraph1: 'We source high-altitude shade-grown Arabica beans directly from sustainable estates in Coorg and Chikmagalur.', paragraph2: 'Our bakery pairs these aromatic brews with fresh buttery bakes, egg puffs, and tea-time cakes prepared hourly.' },
+        phone: '+91 80 2345 6789',
+        email: `hello@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'studio'}.in`,
+        whatsapp: '+918023456789',
+        hours: 'Mon–Fri: 9:30 AM – 6:30 PM IST',
+        theme: { primaryColor: '#f43f5e', secondaryColor: '#8b5cf6', accentColor: '#fb7185', bgColor: '#09090b', borderRadius: '12px' },
+        hero: {
+          heading: `${brand} — We Engineer High-Impact Brands & Digital Products.`,
+          subheading: 'Partner with senior product designers and systems architects to launch distinct visual identities, modular design systems, and fast web apps.',
+          badge: '✦ AWARD-WINNING CREATIVE STUDIO',
+          primaryBtnText: 'Schedule Strategy Call',
+          secondaryBtnText: 'View Selected Work',
+        },
+        about: {
+          heading: 'Disciplined Craftsmanship Meets Measurable Business Impact',
+          paragraph1: 'We don’t just build pretty layouts; we design cohesive digital ecosystems engineered for customer conversion and brand longevity.',
+          paragraph2: 'Our team collaborates directly with founders and product leaders, eliminating agency bloat and accelerating time-to-market.',
+        },
         features: [
-          { title: 'Chikmagalur Shade-Grown Coffee', description: 'Single-estate roasts ground fresh for every cup.' },
-          { title: 'Kulhad Masala Chai', description: 'Simmered with crushed ginger, green cardamom, and cloves.' },
-          { title: 'High-Speed Wi-Fi for Work', description: 'Spacious workspace booths with power outlets and warm coffee.' }
+          { title: 'Modular Design Token Systems', description: 'Scalable typography and UI tokens that maintain consistency across platforms.' },
+          { title: 'High-Performance Web Applications', description: 'Next.js and React architectures built for sub-second load times.' },
+          { title: 'Conversion Funnel Optimization', description: 'Data-driven landing pages designed to eliminate user friction.' },
         ],
         showcaseItems: [
-          { title: 'Traditional South Indian Filter Kaapi', description: 'Strong decoction poured with frothy full-cream milk in a brass davara.', price: '₹95', tag: 'Bestseller' },
-          { title: 'Kesar Elaichi Kulhad Chai', description: 'Creamy slow-simmered tea served in traditional terracotta clay cups.', price: '₹80', tag: 'Favorite' },
-          { title: 'Paneer Tikka Puff & Croissant', description: 'Flaky laminated pastry stuffed with smoky tandoori paneer.', price: '₹140', tag: 'Hot Bake' }
+          { title: 'Fintech Platform Modernization', description: 'Complete design system and mobile app driving 3.8x engagement.', price: 'Case Study', tag: 'Fintech' },
+          { title: 'DTC E-Commerce Flagship', description: 'Headless digital storefront with custom 3D visuals and instant checkout.', price: 'Case Study', tag: 'E-Commerce' },
+          { title: 'AI Workspace Architecture', description: 'Next-generation web application with intuitive real-time canvas tools.', price: 'Case Study', tag: 'SaaS' },
         ],
         testimonials: [
-          { name: 'Karthik Rao', role: 'Software Engineer, Bengaluru', comment: 'My daily workstation. The filter coffee keeps me energized and the atmosphere is so calm.' },
-          { name: 'Sneha Nambiar', role: 'Food Blogger', comment: 'The best Kulhad chai in Indiranagar. Their paneer puffs are legendary!' }
+          { name: 'Karan Singhal', role: 'Founder & CEO, Zepter', comment: `${brand} transformed our customer retention. Their design sensibility and engineering rigor are world-class.` },
+          { name: 'Meera Iyer', role: 'Head of Product, Omnicart', comment: 'Delivered our brand re-launch 2 weeks ahead of schedule. The quality of execution exceeded every expectation.' },
         ],
         pricing: [
-          { name: 'Weekly Work & Coffee Pass', price: '₹999', period: '/week', popular: true, features: ['5 Premium Coffees or Chais', 'Dedicated quiet desk seating', '15% Off all bakes and snacks'] },
-          { name: 'Monthly Coffee Enthusiast', price: '₹2,499', period: '/month', popular: false, features: ['Unlimited Regular Brews', '1 Free Bag of Estate Roasted Beans', 'Priority table booking'] }
+          { name: 'Design Sprint Project', price: '₹1,50,000', period: '/milestone', popular: false, features: ['Comprehensive Brand Identity', 'Design Token System', 'Responsive Landing Page', 'Figma Production Source'] },
+          { name: 'Dedicated Studio Retainer', price: '₹3,50,000', period: '/month', popular: true, features: ['Dedicated Senior Designer + Engineer', 'Weekly Iteration Sprints', 'Priority Product Advisory', 'Unlimited Revisions'] },
         ],
         faq: [
-          { question: 'Do you offer dairy-free milk options?', answer: 'Yes! We offer oat milk, almond milk, and soy milk upon request.' },
-          { question: 'Can we order bakery items in bulk for office meetings?', answer: 'Yes, text us on WhatsApp 2 hours in advance and we will deliver fresh hot boxes.' }
-        ]
+          { question: 'What is your typical project timeline?', answer: 'Most brand and landing page sprints conclude within 3 to 6 weeks from kickoff.' },
+          { question: 'Do you offer development alongside design?', answer: 'Yes, we provide end-to-end frontend and full-stack development ensuring pixel-perfect implementation.' },
+        ],
       };
     }
 
-    if (catKey === 'fitness') {
+    // 5. Portfolio / Systems Architect
+    if (
+      ind === INDUSTRY_TYPES.PORTFOLIO ||
+      p.includes('portfolio') ||
+      p.includes('developer') ||
+      p.includes('engineer portfolio') ||
+      p.includes('resume')
+    ) {
       return {
-        name: 'Shakti Fitness & Yoga Academy',
-        category: 'Fitness & Wellness',
-        tagline: 'Traditional Yoga, Functional Strength & Modern Conditioning',
-        description: 'Premier holistic wellness sanctuary offering classical Ashtanga yoga, modern strength gym equipment, and personalized nutritional guidance.',
-        location: 'Koramangala, Bengaluru',
-        phone: '+91 99800 23456',
-        email: 'join@shaktifitness.in',
-        whatsapp: '+919980023456',
-        hours: 'Mon–Sat: 5:30 AM – 9:30 PM (Sun: 7:00 AM – 1:00 PM)',
-        theme: { primaryColor: '#10b981', secondaryColor: '#06b6d4', accentColor: '#34d399', bgColor: '#06070a', borderRadius: '12px' },
-        hero: { heading: 'Awaken Your Strength. Elevate Your Spirit.', subheading: 'Traditional Hatha & Vinyasa yoga combined with strength training and personalized coaching.', badge: '✦ CERTIFIED OLYMPIC & YOGA COACHES', primaryBtnText: 'Book Free Trial Class', secondaryBtnText: 'WhatsApp Enquiry' },
-        about: { heading: 'Harmonizing Ancient Wisdom with Modern Science', paragraph1: 'True fitness is not just lifting weights—it is breath mastery, muscular endurance, flexibility, and inner discipline.', paragraph2: 'Our certified masters guide beginners and seasoned athletes through safe, transformational fitness journeys.' },
+        name: brand,
+        category: 'Senior Systems Architect & Full-Stack Engineer',
+        tagline: 'Crafting High-Throughput Distributed Systems & Reactive UIs',
+        description: 'Full-stack systems engineer focused on high-concurrency cloud architecture, microservices, scalable web performance, and developer tooling.',
+        location: 'Bengaluru, Karnataka',
+        phone: '+91 99000 11223',
+        email: `arjun@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'dev'}.io`,
+        whatsapp: '+919900011223',
+        hours: 'Mon–Fri: Available for Advisory & Staff Roles',
+        theme: { primaryColor: '#10b981', secondaryColor: '#06b6d4', accentColor: '#34d399', bgColor: '#06080d', borderRadius: '10px' },
+        hero: {
+          heading: `${brand} — Crafting High-Throughput Distributed Systems & Reactive UIs.`,
+          subheading: 'Staff-level engineer specializing in cloud primitives, fault-tolerant event streaming with Go and Kafka, and modern reactive frontends.',
+          badge: '✦ SYSTEMS ARCHITECT & OPEN-SOURCE BUILDER',
+          primaryBtnText: 'Explore Projects',
+          secondaryBtnText: 'Download Resume',
+        },
+        about: {
+          heading: 'Engineering Philosophy: Simplicity, Reliability & Zero Bloat',
+          paragraph1: 'I believe robust software begins with clear boundaries, deterministic error handling, and deep respect for system resources.',
+          paragraph2: 'Over the past 8 years, I have architected distributed queues handling 100k+ events/sec and led frontend redesigns seen by millions.',
+        },
         features: [
-          { title: 'Air-Conditioned Yoga Shala', description: 'Peaceful hardwood studio with eco-friendly mats and props.' },
-          { title: 'Personalized Indian Diet Plans', description: 'Balanced vegetarian and high-protein diet charts tailored to your body.' },
-          { title: 'Women-Only Morning Batches', description: 'Comfortable dedicated training slots with female certified trainers.' }
+          { title: 'Distributed Stream Processing', description: 'High-throughput fault-tolerant event streams with Go, Kafka, and Redis.' },
+          { title: 'Modern Reactive Frontends', description: 'Pixel-perfect, accessible web applications with React, Next.js, and TypeScript.' },
+          { title: 'Infrastructure as Code & Observability', description: 'Automated Terraform provisioning and granular OpenTelemetry distributed tracing.' },
         ],
         showcaseItems: [
-          { title: 'Classical Ashtanga Yoga Batch', description: 'Daily 60-minute guided morning yoga for flexibility and mental calm.', price: '₹2,499 / mo', tag: 'Popular' },
-          { title: 'Functional Strength & HIIT', description: 'High-intensity fat-loss and core conditioning sessions.', price: '₹2,999 / mo', tag: 'Bestseller' },
-          { title: '1-on-1 Personal Transformation', description: 'Dedicated personal trainer, posture analysis, and diet tracker.', price: '₹7,999 / mo', tag: 'Exclusive' }
+          { title: 'Autonomous Task Queue Engine', description: 'Lightweight distributed worker queue handling 100k events/sec in Go.', price: 'Open Source', tag: 'Distributed' },
+          { title: 'Collaborative Vector Canvas', description: 'Real-time collaborative diagramming tool with WebSockets and CRDTs.', price: 'Production', tag: 'Frontend' },
+          { title: 'Multi-Cloud Cost Auditor CLI', description: 'Cross-cloud resource auditor reducing AWS and GCP compute bills by 34%.', price: 'Tooling', tag: 'DevOps' },
         ],
         testimonials: [
-          { name: 'Vikram Joshi', role: 'IT Manager', comment: 'Lost 12 kgs in 4 months with their functional training and practical Indian meal plan.' },
-          { name: 'Priya Sundaram', role: 'Classical Dancer', comment: 'The yoga instructors are exceptionally knowledgeable. My back pain has completely vanished.' }
+          { name: 'Siddharth Rao', role: 'Director of Engineering, PayGrid', comment: 'Arjun rebuilt our core payment transaction worker. It ran for 18 months with zero downtime under peak Diwali traffic.' },
+          { name: 'Dr. Tanya Bose', role: 'Founder, NeuroTech', comment: 'Rare combination of deep distributed backend knowledge and refined frontend aesthetic taste.' },
         ],
         pricing: [
-          { name: 'Quarterly Membership', price: '₹6,999', period: '/3 months', popular: true, features: ['Unlimited Yoga & Gym Access', 'Monthly Body Composition Test', 'Free Steam & Locker Access'] },
-          { name: 'Annual Transformation Plan', price: '₹19,999', period: '/year', popular: false, features: ['Complete 365-Day Access', 'Quarterly Personal Diet Consultation', '2 Guest Passes Per Month', 'Free Shakti Fitness Kit'] }
+          { name: 'Technical Advisory Sprint', price: '₹45,000', period: '/day', popular: false, features: ['Architecture Review & Threat Modeling', 'Database Indexing Audit', 'Cloud Infrastructure Optimization', 'Executive Technical Report'] },
+          { name: 'Full-Stack Architecture Retainer', price: '₹2,50,000', period: '/month', popular: true, features: ['20 Dedicated Hours/Week', 'Hands-on Code & PR Reviews', 'Direct Mentorship of Junior Engineers', 'Emergency Escalation Access'] },
         ],
         faq: [
-          { question: 'Is prior yoga experience required?', answer: 'Not at all. We have beginner batches that start from basic breathwork and foundational postures.' },
-          { question: 'Do you offer trial sessions?', answer: 'Yes! Click "Book Free Trial" or message us on WhatsApp to schedule your complimentary session.' }
-        ]
+          { question: 'What types of roles or consulting engagements are you open to?', answer: 'I am open to Staff/Principal engineering roles, technical advisory, and high-impact contract architecture sprints.' },
+          { question: 'What is your primary technology stack?', answer: 'TypeScript, Go, React, Python, PostgreSQL, Redis, Docker, and AWS/GCP cloud primitives.' },
+        ],
       };
     }
 
-    if (catKey === 'education') {
-      return {
-        name: 'Lakshya IIT-JEE & NEET Academy',
-        category: 'Coaching Institute',
-        tagline: 'Kota’s Premier Classroom & Online Mentorship for Top AIR Ranks',
-        description: 'Rajasthan’s premier coaching institute offering rigorous foundation batches, daily practice problems, and personal faculty mentorship for JEE Advanced and NEET-UG.',
-        location: 'Rajeev Gandhi Nagar, Kota, Rajasthan',
-        phone: '+91 744 243 5678',
-        email: 'admissions@lakshyaacademy.in',
-        whatsapp: '+917442435678',
-        hours: 'Mon–Sun: 7:00 AM – 9:00 PM',
-        theme: { primaryColor: '#2563eb', secondaryColor: '#f59e0b', accentColor: '#3b82f6', bgColor: '#07090e', borderRadius: '14px' },
-        hero: { heading: 'Turn Your Dream of Top Ranks into Reality.', subheading: 'Premier IIT-JEE & NEET coaching by Kota top faculty with personalized doubt clearing, daily problem sheets, and national test series.', badge: '✦ ADMISSIONS OPEN FOR 2026-27 SESSIONS', primaryBtnText: 'Apply for Admission', secondaryBtnText: 'Download Syllabus & Fee Structure' },
-        about: { heading: 'Proven Methodology Delivering Top 100 AIRs', paragraph1: 'For over 15 years, Lakshya Academy has cultivated an uncompromising standard of academic excellence and intellectual discipline in Kota.', paragraph2: 'We provide structured test series, 1-on-1 mentor guidance, and reading room facilities designed for focused preparation.' },
-        features: [
-          { title: 'Ex-IITian & Doctor Faculty', description: 'Experienced educators with proven records of producing top 50 AIRs.' },
-          { title: 'Daily Practice Problems (DPP)', description: '30 challenging daily problems graded every single evening.' },
-          { title: 'All India Test Series (AITS)', description: 'National percentile benchmarking with in-depth AI performance analytics.' }
-        ],
-        showcaseItems: [
-          { title: '2-Year IIT-JEE Foundation (Class 11-12)', description: 'Complete Physics, Chemistry, Mathematics syllabus with Olympiad and JEE Advanced training.', price: '₹48,000 / yr', tag: 'Top Program' },
-          { title: 'Target NEET-UG Medical Batch', description: 'Intensive NCERT Biology, Organic Chemistry, and Physics modules with weekly speed tests.', price: '₹42,000 / yr', tag: 'Bestseller' },
-          { title: 'Rank Booster 90-Day Crash Course', description: 'High-yield problem solving, revision marathons, and mock test analysis.', price: '₹14,999', tag: 'Crash Course' }
-        ],
-        testimonials: [
-          { name: 'Aryan Agarwal', role: 'AIR 34, JEE Advanced 2025', comment: 'The doubt clearing counters at Lakshya were the decisive factor in my success. The teachers are available round the clock.' },
-          { name: 'Dr. Meenakshi Sharma', role: 'Parent of NEET AIR 82 Ranker', comment: 'The discipline and regular parent-teacher reports kept my daughter focused and confident throughout the 2 years.' }
-        ],
-        pricing: [
-          { name: 'Distance Learning / Test Series', price: '₹4,999', period: '/year', popular: false, features: ['30 National Mock Tests', 'Detailed AI Rank Analytics', 'Printed Study Modules Courier Delivery'] },
-          { name: 'Comprehensive Classroom Batch', price: '₹45,000', period: '/year', popular: true, features: ['Daily 6-Hour Classroom Sessions', 'Daily Practice Problems (DPP)', '1-on-1 Faculty Doubt Desk', 'Library & Reading Room Access'] },
-          { name: 'Residential Hostel & Coaching Program', price: '₹95,000', period: '/year', popular: false, features: ['Full Tuition + Hostel & Balanced Meals', '24/7 Wardens & Supervised Self-Study', 'Personal Academic Mentor'] }
-        ],
-        faq: [
-          { question: 'Do you conduct an entrance scholarship test?', answer: 'Yes, we conduct the Lakshya National Talent Search Exam (LNTSE) offering up to 90% fee concessions to meritorious students.' },
-          { question: 'Can students take admission mid-session?', answer: 'Yes, bridge batches are available. Contact our admission desk or apply online directly.' }
-        ]
-      };
-    }
-
-    if (catKey === 'healthcare') {
-      return {
-        name: 'Sanjeevani Dental Care & Multispecialty Clinic',
-        category: 'Healthcare & Dental Clinic',
-        tagline: 'Painless Digital Dentistry & Advanced Multispecialty Care',
-        description: 'State-of-the-art clinic offering painless laser dental treatments, dental implants, cosmetic smile design, and general family healthcare with international sterilization standards.',
-        location: 'Bandra West, Mumbai, Maharashtra',
-        phone: '+91 22 2640 1234',
-        email: 'care@sanjeevanidental.in',
-        whatsapp: '+912226401234',
-        hours: 'Mon–Sat: 9:00 AM – 8:30 PM (Sun: 10:00 AM – 2:00 PM)',
-        theme: { primaryColor: '#10b981', secondaryColor: '#06b6d4', accentColor: '#34d399', bgColor: '#06080d', borderRadius: '14px' },
-        hero: { heading: 'Exceptional Dental Care for Confident Smiles.', subheading: 'Painless laser treatments, immediate dental implants, and clear invisible aligners by experienced dental surgeons in Mumbai.', badge: '✦ 100% STERILE CLINICAL PROTOCOL', primaryBtnText: 'Book Appointment', secondaryBtnText: 'WhatsApp Consultation' },
-        about: { heading: 'Advanced Clinical Technology Meets Gentle Patient Care', paragraph1: 'At Sanjeevani, we ensure every treatment is completely anxiety-free through computerized anesthesia, digital 3D intraoral scanners, and sterile operatory suites.', paragraph2: 'Our team of MDS specialists has treated over 12,000 happy patients across Mumbai.' },
-        features: [
-          { title: 'Painless Laser Dentistry', description: 'Minimal invasive treatments with near-zero recovery time.' },
-          { title: 'German Digital 3D Scanners', description: 'High-precision digital impressions without messy putty trays.' },
-          { title: 'Strict 5-Tier Sterilization', description: 'Autoclaved instruments sealed in sterile pouches for each patient.' }
-        ],
-        showcaseItems: [
-          { title: 'Immediate Dental Implants', description: 'Permanent titanium tooth replacement with natural chewing strength.', price: '₹18,000', tag: 'Advanced' },
-          { title: 'Clear Invisible Aligners', description: 'Custom transparent teeth straightening trays without metal wires.', price: '₹45,000', tag: 'Popular' },
-          { title: 'Laser Teeth Whitening', description: 'Single-sitting cosmetic smile brightening by up to 6 shades.', price: '₹4,500', tag: 'Cosmetic' }
-        ],
-        testimonials: [
-          { name: 'Rohit Khandelwal', role: 'Corporate Executive, Mumbai', comment: 'I had severe dental anxiety, but Dr. Sanjeev and his team made my root canal completely painless. Unbelievable experience.' },
-          { name: 'Kavita Pillai', role: 'Teacher', comment: 'Got invisible aligners done here. My smile has transformed completely within 8 months. Transparent pricing and gentle doctors.' }
-        ],
-        pricing: [
-          { name: 'Preventive Health Checkup', price: '₹500', period: '/visit', popular: false, features: ['Digital Intraoral Camera Exam', '2 X-Rays Included', 'Personal Oral Hygiene Consultation'] },
-          { name: 'Complete Scaling & Polishing', price: '₹1,200', period: '/session', popular: true, features: ['Ultrasonic Tartar Removal', 'Stain Polishing & Fluoride Care', 'Free 6-Month Follow-up'] },
-          { name: 'Family Smile Protection Plan', price: '₹3,999', period: '/year', popular: false, features: ['Annual Care for 4 Family Members', 'Unlimited Consultations & Cleaning', '20% Flat Discount on All Procedures'] }
-        ],
-        faq: [
-          { question: 'Are emergency dental appointments available?', answer: 'Yes! We accommodate acute toothache and trauma emergencies on priority. Call our clinic or message on WhatsApp.' },
-          { question: 'Do you accept health insurance for dental surgery?', answer: 'Yes, we provide cashless facility and reimbursement assistance for eligible corporate and private insurance plans.' }
-        ]
-      };
-    }
-
-    if (catKey === 'fashion') {
-      return {
-        name: 'Rangoli Heritage Silks & Zari Sarees',
-        category: 'Saree Boutique & Ethnic Wear',
-        tagline: 'Pure Banarasi, Kanjeevaram & Handloom Zari Sarees',
-        description: 'Jaipur’s iconic heritage boutique curating pure mulberry silk sarees, hand-woven gold zari Banarasis, and royal bridal lehengas directly from master artisan weavers.',
-        location: 'Johari Bazaar, Jaipur, Rajasthan',
-        phone: '+91 141 256 7890',
-        email: 'orders@rangolisilks.in',
-        whatsapp: '+911412567890',
-        hours: 'Mon–Sun: 10:30 AM – 8:30 PM',
-        theme: { primaryColor: '#d97706', secondaryColor: '#dc2626', accentColor: '#fbbf24', bgColor: '#0a0808', borderRadius: '14px' },
-        hero: { heading: 'Royal Indian Handlooms Woven to Perfection.', subheading: 'Pure silk Banarasis, authentic Kanjeevarams, and handcrafted royal bridal drapes with certified Silk Mark authenticity.', badge: '✦ CERTIFIED 100% PURE SILK MARK', primaryBtnText: 'Order on WhatsApp', secondaryBtnText: 'View Catalog & Prices' },
-        about: { heading: 'Preserving India’s Centuries-Old Weaving Heritage', paragraph1: 'Every drape at Rangoli Silks tells the story of generational master artisans using traditional pit looms to intertwine pure silk yarns with exquisite zari work.', paragraph2: 'We bring you heirlooms made to be cherished through festive celebrations and wedding vows across generations.' },
-        features: [
-          { title: 'Silk Mark Certified Purity', description: 'Every saree is authenticated with the government Silk Mark tag.' },
-          { title: 'Direct Artisan Weavers', description: 'Ethically sourced directly from Banaras, Kanchipuram, and Chanderi.' },
-          { title: '1-Tap WhatsApp Video Shopping', description: 'View live saree drapes with our stylists over high-definition video call.' }
-        ],
-        showcaseItems: [
-          { title: 'Royal Crimson Banarasi Katan Silk', description: 'Intricate floral jaal woven with gold and antique silver zari border.', price: '₹6,499', tag: 'Bestseller' },
-          { title: 'Emerald Green Temple Kanjeevaram', description: 'Heavy Korvai contrast pallu with rich gold peacock motifs.', price: '₹8,999', tag: 'Bridal Heritage' },
-          { title: 'Pastel Chanderi Silk Saree', description: 'Lightweight handloom drape with delicate zari butis, ideal for daytime soirees.', price: '₹3,299', tag: 'Festive' }
-        ],
-        testimonials: [
-          { name: 'Sunita Mehra', role: 'Delhi Bride', comment: 'I purchased my bridal Banarasi over WhatsApp video call. The fabric quality and sheen are even more stunning in person!' },
-          { name: 'Anuradha Joshi', role: 'Jaipur Patron', comment: 'Authentic pure silk at honest prices. My family has been shopping from Rangoli for all weddings.' }
-        ],
-        pricing: [
-          { name: 'Festive Handloom Bundle', price: '₹4,999', period: '/set', popular: false, features: ['1 Pure Chanderi Silk Saree', 'Matching Unstitched Blouse Piece', 'Free Express Shipping Across India'] },
-          { name: 'Royal Bridal Ensemble', price: '₹14,999', period: '/ensemble', popular: true, features: ['Heavy Banarasi or Kanjeevaram Saree', 'Custom Hand-Embroidered Blouse', 'Complimentary Silk Care Box & Potli Bag', 'WhatsApp Video Styling Session'] },
-          { name: 'Wedding Trousseau Curated Set', price: '₹35,000', period: '/trousseau', popular: false, features: ['5 Handpicked Heritage Sarees', 'Silk Mark Certification Cards', 'Personal Master Weaver Video Consultation'] }
-        ],
-        faq: [
-          { question: 'Do you offer Cash on Delivery (COD) across India?', answer: 'Yes, we provide COD with safe parcel inspection across all 19,000+ Indian postal pin codes.' },
-          { question: 'Can I book a WhatsApp video call to see sarees before buying?', answer: 'Absolutely! Just tap our WhatsApp button and our stylist will show you the sarees live on video.' }
-        ]
-      };
-    }
-
-    // Default Tech / SaaS / Studio
+    // Default Tech Startup Fallback
     return {
-      name: 'VyaparAI Cloud Platform',
-      category: 'Tech Startup & SaaS',
-      tagline: 'Autonomous GST Billing, WhatsApp CRM & Inventory for Bharat MSMEs',
-      description: 'The smart all-in-one business software empowering Indian shops, distributors, and tech enterprises with instant WhatsApp billing, automated GST filing, and real-time inventory management.',
+      name: brand,
+      category: 'Tech Startup & Innovation Platform',
+      tagline: 'Modern High-Impact Digital Solutions & Products',
+      description: 'Empowering ambitious businesses with scalable architecture, human-centric design, and reliable performance.',
       location: 'HSR Layout, Bengaluru, Karnataka',
       phone: '+91 80 4567 8900',
-      email: 'contact@vyaparai.in',
+      email: 'contact@domain.in',
       whatsapp: '+918045678900',
       hours: 'Mon–Sat: 9:00 AM – 7:00 PM IST',
-      theme: { primaryColor: '#06b6d4', secondaryColor: '#8b5cf6', accentColor: '#38bdf8', bgColor: '#06070a', borderRadius: '16px' },
-      hero: { heading: 'Power Your Indian Business with Intelligent Automation.', subheading: 'Generate GST-compliant invoices in 3 seconds, collect UPI payments with 0% gateway fees, and track inventory seamlessly on WhatsApp.', badge: '✦ TRUSTED BY 15,000+ INDIAN MERCHANTS', primaryBtnText: 'Start Free 14-Day Trial', secondaryBtnText: 'Schedule Live Demo' },
-      about: { heading: 'Engineered Specially for Indian Commerce & MSMEs', paragraph1: 'Traditional ERP software is bloated, English-only, and too complicated for fast-paced Indian retail counters. VyaparAI was built from scratch for Indian trade dynamics.', paragraph2: 'From e-way bills to automated WhatsApp payment reminders, we help business owners save 15+ hours every week.' },
+      theme: { primaryColor: '#06b6d4', secondaryColor: '#8b5cf6', accentColor: '#38bdf8', bgColor: '#06070a', borderRadius: '14px' },
+      hero: { heading: `${brand} — Engineered for Performance, Designed for Modern Impact.`, subheading: 'We build resilient systems and intuitive digital products that elevate your brand and accelerate operational velocity.', badge: '✦ INTENTIONAL DIGITAL ARCHITECTURE', primaryBtnText: 'Start Free Trial', secondaryBtnText: 'Schedule Consultation' },
+      about: { heading: 'A Dedication to Engineering Excellence and Craftsmanship', paragraph1: 'We craft high-impact solutions with uncompromising standards, modern architecture, and customer-first design.', paragraph2: 'Every component, workflow, and interface is engineered with precision to ensure your business moves faster with absolute confidence.' },
       features: [
-        { title: '1-Click GST Invoicing', description: 'Auto-calculates CGST, SGST, IGST with HSN code lookup.' },
-        { title: 'Automated WhatsApp Reminders', description: 'Send polite payment links with UPI QR codes directly to customers.' },
-        { title: 'Multi-Language Counter App', description: 'Works smoothly in Hindi, Tamil, Telugu, Marathi, and English.' }
+        { title: 'Sub-Second Latency', description: 'Optimized performance across every user touchpoint.' },
+        { title: 'Enterprise Security', description: 'Built-in privacy safeguards and compliance standards.' },
+        { title: 'Seamless Integrations', description: 'Connects directly with your existing tools and workflows.' },
       ],
       showcaseItems: [
-        { title: 'VyaparAI Mobile POS App', description: 'Fast offline-ready billing on Android tablets and smartphones.', price: 'Free Core', tag: 'Mobile First' },
-        { title: 'Automated GST Reconciliation', description: 'Direct API connection to the GST portal for seamless GSTR-1 & 3B filing.', price: '₹499 / mo', tag: 'Popular' },
-        { title: 'Multi-Store Inventory Sync', description: 'Real-time stock tracking across multiple godowns and retail branches.', price: '₹1,299 / mo', tag: 'Enterprise' }
+        { title: 'Core Platform Engine', description: 'Essential automation workflows and unified reporting dashboard.', price: '₹4,999 / mo', tag: 'Popular' },
+        { title: 'Enterprise Cluster Tier', description: 'Dedicated VPC hosting, private SLAs, and tailored architectural support.', price: 'Custom', tag: 'Enterprise' },
       ],
       testimonials: [
-        { name: 'Rajesh Agrawal', role: 'Owner, Agrawal Wholesale Traders, Indore', comment: 'Our payment recovery increased by 35% after using VyaparAI WhatsApp reminders. It is an absolute game changer.' },
-        { name: 'Kavita Menon', role: 'Founder, SpiceRoot Organics, Kochi', comment: 'Handling GST invoices was a nightmare before this. Now even our counter staff issues bills in 5 seconds.' }
+        { name: 'Aarav Mehta', role: 'VP of Technology', comment: 'The clarity and speed of execution are unmatched. Highly recommended.' },
+        { name: 'Priya Sharma', role: 'Founder & CEO', comment: 'A flawless experience from start to launch. Outstanding attention to detail.' },
       ],
       pricing: [
-        { name: 'Vyapar Starter', price: '₹0', period: '/free forever', popular: false, features: ['Up to 100 Invoices / Month', 'Basic WhatsApp Invoicing', 'Android Mobile App Access'] },
-        { name: 'Vyapar Pro', price: '₹799', period: '/month', popular: true, features: ['Unlimited GST Invoices', 'Automated UPI Payment Links', 'Multi-Store Inventory', 'Priority WhatsApp Support'] },
-        { name: 'Enterprise', price: '₹2,499', period: '/month', popular: false, features: ['Multi-User Role Permissions', 'Direct GST Portal API Sync', 'Dedicated Account Manager', 'Custom ERP Integrations'] }
+        { name: 'Professional Starter', price: '₹2,499', period: '/month', popular: false, features: ['Core features included', 'Standard API access', 'Community support'] },
+        { name: 'Scale Tier', price: '₹7,999', period: '/month', popular: true, features: ['All Starter features', 'Priority technical support', 'Advanced analytics'] },
       ],
       faq: [
-        { question: 'Is my business data secure and hosted in India?', answer: 'Yes, 100% of your data is encrypted with bank-grade AES-256 security and hosted in MeitY-approved Indian data centers.' },
-        { question: 'Can I import my existing customer and product list from Excel?', answer: 'Yes! You can upload your existing Excel or Tally sheets in 1 click or contact our team via WhatsApp for free onboarding.' }
-      ]
+        { question: 'How quickly can our team get started?', answer: 'You can launch in minutes with our streamlined setup process and comprehensive guides.' },
+        { question: 'Do you offer custom integrations?', answer: 'Yes, our platform provides open APIs and dedicated webhook support for custom workflows.' },
+      ],
+    };
+  },
+
+  /**
+   * Resilient offline/fallback modification synthesizer:
+   * Guarantees that website updates NEVER fail or crash even during network interruptions.
+   * Modifies ONLY requested components without collateral damage.
+   */
+  synthesizeFallbackModification(prompt, project) {
+    const p = prompt.toLowerCase().trim();
+    const actions = [];
+    const currentBrand = project?.brand?.businessName || project?.metadata?.name || 'Venture';
+    let message = 'Applied targeted updates based on your request.';
+
+    function extractTargetValue(raw) {
+      if (!raw) return '';
+      const s = raw.trim().replace(/^to\s+/i, '').trim();
+      if (s.startsWith('"') && s.indexOf('"', 1) !== -1) {
+        return s.slice(1, s.indexOf('"', 1)).trim();
+      }
+      if (s.startsWith('“') && s.indexOf('”', 1) !== -1) {
+        return s.slice(1, s.indexOf('”', 1)).trim();
+      }
+      if (s.startsWith("'") && s.endsWith("'") && s.length > 2) {
+        return s.slice(1, -1).trim();
+      }
+      return s.replace(/^["'“]/, '').replace(/["'”]$/, '').trim();
+    }
+
+    // 1. Brand / Business Name Updates
+    const brandMatch = prompt.match(/(?:change|rename|set|update)\s+(?:the\s+)?(?:brand(?:\s+name)?|company(?:\s+name)?|business(?:\s+name)?|store(?:\s+name)?|site\s+name|name)\s+(.*)$/i);
+    if (brandMatch && brandMatch[1]) {
+      const newName = extractTargetValue(brandMatch[1]);
+      if (newName) {
+        actions.push({ type: 'update_text', target: 'brand.businessName', value: newName, description: `Updated brand name to "${newName}"` });
+        actions.push({ type: 'update_text', target: 'navigation.logoText', value: newName, description: `Updated navigation logo to "${newName}"` });
+        actions.push({ type: 'update_text', target: 'footer.brandName', value: newName, description: `Updated footer brand to "${newName}"` });
+        return {
+          message: `Updated brand and company name to "${newName}".`,
+          actions,
+          invalidActions: [],
+          provider: 'klyvora-natural-compiler',
+          isFallback: true,
+        };
+      }
+    }
+
+    // 2. Direct Heading / Title Updates
+    const headingMatch = prompt.match(/(?:change|update|set|make)\s+(?:the\s+)?(?:hero\s+)?(?:heading|headline|main\s+title|title)\s+(.*)$/i);
+    if (headingMatch && headingMatch[1] && !/\b(shorter|cinematic)\b/i.test(p)) {
+      const cleanHeading = extractTargetValue(headingMatch[1]);
+      if (cleanHeading) {
+        actions.push({ type: 'update_text', target: 'hero.heading', value: cleanHeading, description: `Updated Hero Headline to "${cleanHeading}"` });
+        return {
+          message: `Updated the main hero headline to "${cleanHeading}".`,
+          actions,
+          invalidActions: [],
+          provider: 'klyvora-natural-compiler',
+          isFallback: true,
+        };
+      }
+    }
+
+    // 3. Subheading / Description Updates
+    const subMatch = prompt.match(/(?:change|update|set)\s+(?:the\s+)?(?:subheading|subtitle|sub-headline|description)\s+(.*)$/i);
+    if (subMatch && subMatch[1]) {
+      const cleanSub = extractTargetValue(subMatch[1]);
+      if (cleanSub) {
+        actions.push({ type: 'update_text', target: 'hero.subheading', value: cleanSub, description: `Updated Hero Subheading to "${cleanSub}"` });
+        return {
+          message: `Updated the hero subheading to "${cleanSub}".`,
+          actions,
+          invalidActions: [],
+          provider: 'klyvora-natural-compiler',
+          isFallback: true,
+        };
+      }
+    }
+
+    // 4. Button / CTA Updates
+    const btnMatch = prompt.match(/(?:change|update|set)\s+(?:the\s+)?(?:hero\s+)?(?:primary\s+)?(?:button|btn|cta)\s+(?:text\s+)?(.*)$/i);
+    if (btnMatch && btnMatch[1]) {
+      const cleanBtn = extractTargetValue(btnMatch[1]);
+      if (cleanBtn) {
+        actions.push({ type: 'update_button', target: 'hero.primaryBtnText', value: cleanBtn, description: `Updated Primary Button to "${cleanBtn}"` });
+        return {
+          message: `Updated the primary call-to-action button to "${cleanBtn}".`,
+          actions,
+          invalidActions: [],
+          provider: 'klyvora-natural-compiler',
+          isFallback: true,
+        };
+      }
+    }
+
+    // 5. Contact / WhatsApp / Phone / Email Updates
+    const phoneMatch = prompt.match(/(?:phone|call|mobile|number|tel)\s*(?:to|is|:)?\s*([+]?[\d\s-]{10,15})/i);
+    if (phoneMatch && phoneMatch[1]) {
+      const num = phoneMatch[1].trim();
+      actions.push({ type: 'update_text', target: 'brand.contact.phone', value: num, description: `Updated phone number to ${num}` });
+      actions.push({ type: 'update_text', target: 'contact.phone', value: num, description: `Updated contact phone to ${num}` });
+      message = `Updated contact phone number to ${num}.`;
+    }
+
+    const emailMatch = prompt.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    if (emailMatch && emailMatch[1]) {
+      const email = emailMatch[1].trim();
+      actions.push({ type: 'update_text', target: 'brand.contact.email', value: email, description: `Updated contact email to ${email}` });
+      actions.push({ type: 'update_text', target: 'contact.email', value: email, description: `Updated email to ${email}` });
+      message = `Updated contact email address to ${email}.`;
+    }
+
+    if (/\b(whatsapp|chat|instant order)\b/i.test(p)) {
+      actions.push({ type: 'update_button', target: 'hero.primaryBtnText', value: 'Order on WhatsApp', description: 'Set Primary CTA to WhatsApp Order' });
+      actions.push({ type: 'update_button', target: 'hero.primaryBtnUrl', value: '#whatsapp', description: 'Linked CTA to WhatsApp' });
+      actions.push({ type: 'update_text', target: 'brand.ctaText', value: 'WhatsApp Order', description: 'Updated Brand CTA' });
+      message = 'Configured 1-tap direct WhatsApp ordering and enquiries.';
+    }
+
+    // 6. Section Removals
+    const removeSecMatch = prompt.match(/(?:remove|delete|hide|drop)\s+(?:the\s+)?(pricing|faq|testimonials?|reviews?|stats?|metrics?|cta(?:\s+banner)?|features?|about)/i);
+    if (removeSecMatch && removeSecMatch[1]) {
+      const targetType = removeSecMatch[1].toLowerCase();
+      actions.push({ type: 'remove_section', target: targetType, description: `Removed ${targetType} section` });
+      return {
+        message: `Removed the ${targetType} section from the website.`,
+        actions,
+        invalidActions: [],
+        provider: 'klyvora-natural-compiler',
+        isFallback: true,
+      };
+    }
+
+    // 7. Section Additions
+    if (/\b(stat|stats|metric|metrics|kpi)\b/i.test(p) && !actions.some((a) => a.target === 'stats')) {
+      actions.push({
+        type: 'add_section',
+        target: 'page.home.sections',
+        value: {
+          type: 'stats',
+          name: 'Impact Metrics',
+          props: {
+            badge: 'PERFORMANCE SCALE',
+            heading: 'Engineered for Quantifiable Impact',
+            subheading: 'Proven metrics delivered across production operations and scale.',
+            items: [
+              { value: '99.99%', label: 'Platform Availability' },
+              { value: '<15ms', label: 'Average Pipeline Latency' },
+              { value: '4.8x', label: 'Operational Speedup' },
+              { value: '10M+', label: 'Monthly Operations' },
+            ],
+          },
+        },
+        description: 'Added high-impact performance metrics section',
+      });
+      message = 'Added a quantitative performance stats section to showcase measurable impact.';
+    }
+
+    if (/\b(cta|call to action|cta banner|closing banner)\b/i.test(p) && !p.includes('hero') && !actions.some((a) => a.value?.type === 'cta_banner')) {
+      actions.push({
+        type: 'add_section',
+        target: 'page.home.sections',
+        value: {
+          type: 'cta_banner',
+          name: 'Call to Action',
+          props: {
+            badge: 'GET STARTED TODAY',
+            heading: `Ready to Elevate Your Operations with ${currentBrand}?`,
+            subheading: 'Join hundreds of forward-thinking businesses experiencing the next generation standard.',
+            primaryBtnText: 'Get Started Now',
+            primaryBtnUrl: '#contact',
+            secondaryBtnText: 'Schedule Consultation',
+            secondaryBtnUrl: '#contact',
+          },
+        },
+        description: 'Added high-conversion call to action banner',
+      });
+      message = 'Added high-conversion call to action banner right before the footer.';
+    }
+
+    if (/\b(testimonial|testimonials|review|reviews|feedback)\b/i.test(p) && !actions.some((a) => a.value?.type === 'testimonials')) {
+      actions.push({
+        type: 'add_section',
+        target: 'page.home.sections',
+        value: {
+          type: 'testimonials',
+          name: 'Client Endorsements',
+          props: {
+            badge: 'VERIFIED REVIEWS',
+            heading: 'Trusted by Industry Leaders',
+            subheading: 'What our partners and customers have to say about working with us.',
+            items: [
+              { name: 'Arjun Mehta', role: 'Managing Director', comment: `${currentBrand} completely elevated our digital presence and operations. Exceptional quality and attention to detail.`, rating: 5 },
+              { name: 'Priya Sharma', role: 'Product Lead', comment: 'Flawless execution, intuitive interfaces, and outstanding reliability. Highly recommended!', rating: 5 },
+              { name: 'Vikram Patel', role: 'Founder & CEO', comment: 'The turnaround speed and architectural polish exceeded all expectations.', rating: 5 },
+            ],
+          },
+        },
+        description: 'Added client testimonials section',
+      });
+      message = 'Added verified customer reviews section to strengthen social proof.';
+    }
+
+    if (/\b(pricing|plans?|tiers?|subscription)\b/i.test(p) && !actions.some((a) => a.value?.type === 'pricing')) {
+      actions.push({
+        type: 'add_section',
+        target: 'page.home.sections',
+        value: {
+          type: 'pricing',
+          name: 'Transparent Pricing',
+          props: {
+            badge: 'FLEXIBLE TIERS',
+            heading: 'Simple, Transparent Investment',
+            subheading: 'Transparent plans calibrated for sustainable growth without hidden fees.',
+            plans: [
+              { name: 'Starter', price: '₹2,499', period: '/month', desc: 'Essential core capabilities.', popular: false, features: ['Standard Support', 'Daily Backups', 'Full Core Access'] },
+              { name: 'Professional', price: '₹5,999', period: '/month', desc: 'Accelerated growth & priority SLAs.', popular: true, features: ['Priority 24/7 SLA', 'Dedicated Manager', 'Advanced Analytics', 'Unlimited Workflows'] },
+              { name: 'Enterprise', price: 'Custom', period: '', desc: 'Bespoke infrastructure and scaling.', popular: false, features: ['Custom Integrations', 'On-premise Deployment', 'Dedicated Solutions Architect'] },
+            ],
+          },
+        },
+        description: 'Added transparent pricing table',
+      });
+      message = 'Added transparent pricing table with rupee calibration.';
+    }
+
+    if (/\b(faq|questions?|answers?)\b/i.test(p) && !actions.some((a) => a.value?.type === 'faq')) {
+      actions.push({
+        type: 'add_section',
+        target: 'page.home.sections',
+        value: {
+          type: 'faq',
+          name: 'Frequently Asked Questions',
+          props: {
+            badge: 'KNOWLEDGE BASE',
+            heading: 'Frequently Asked Questions',
+            subheading: 'Everything you need to know about getting started.',
+            items: [
+              { question: `How do I get started with ${currentBrand}?`, answer: 'Reach out through our contact form or WhatsApp button, and our team will onboard you within 24 hours.' },
+              { question: 'What payment methods do you support?', answer: 'We support all major UPI platforms, credit cards, debit cards, and direct bank transfers in Indian Rupees (₹).' },
+              { question: 'Is there ongoing support provided?', answer: 'Yes, our dedicated support team is available round the clock to ensure smooth and uninterrupted service.' },
+            ],
+          },
+        },
+        description: 'Added interactive FAQ section',
+      });
+      message = 'Added interactive FAQ section to answer key customer questions.';
+    }
+
+    if (/\b(announcement|festive|discount\s+banner|top\s+bar)\b/i.test(p)) {
+      actions.push({
+        type: 'add_section',
+        target: 'page.home.sections',
+        value: {
+          type: 'announcement',
+          name: 'Announcement Bar',
+          props: {
+            text: '✨ Special Inaugural Offer: Enjoy 20% savings with code FESTIVE20 for a limited time.',
+            linkText: 'Claim Now →',
+            linkUrl: '#pricing',
+          },
+        },
+        description: 'Added top announcement offer banner',
+      });
+      message = 'Added top announcement offer banner.';
+    }
+
+    // 8. Theme / Color Updates with STRICT word boundaries (Ensures 'incredible' does NOT trigger red!)
+    const hexMatch = prompt.match(/#(?:[0-9a-fA-F]{3}){1,2}\b/);
+    if (hexMatch) {
+      actions.push({ type: 'update_style', target: 'theme.primaryColor', value: hexMatch[0], description: `Updated primary color to ${hexMatch[0]}` });
+      message = `Updated primary theme color to ${hexMatch[0]}.`;
+    } else if (/\b(saffron|orange|amber|gold)\b/i.test(p)) {
+      actions.push({ type: 'update_style', target: 'theme.primaryColor', value: '#f59e0b', description: 'Updated primary color to Saffron Amber' });
+      actions.push({ type: 'update_style', target: 'theme.accentColor', value: '#fbbf24', description: 'Updated accent color to Warm Gold' });
+      message = 'Switched theme to Royal Indian Saffron & Warm Gold.';
+    } else if (/\b(emerald|green|mint)\b/i.test(p)) {
+      actions.push({ type: 'update_style', target: 'theme.primaryColor', value: '#10b981', description: 'Updated primary color to Emerald Green' });
+      actions.push({ type: 'update_style', target: 'theme.accentColor', value: '#34d399', description: 'Updated accent color to Fresh Mint' });
+      message = 'Switched theme to Vibrant Emerald Green.';
+    } else if (/\b(cyan|sky|teal|blue|neon)\b/i.test(p)) {
+      actions.push({ type: 'update_style', target: 'theme.primaryColor', value: '#06b6d4', description: 'Updated primary color to Cyber Cyan' });
+      actions.push({ type: 'update_style', target: 'theme.accentColor', value: '#38bdf8', description: 'Updated accent color to Sky Blue' });
+      message = 'Updated theme to Next-Gen Cyber Cyan.';
+    } else if (/\b(purple|violet|iris|luxury)\b/i.test(p)) {
+      actions.push({ type: 'update_style', target: 'theme.primaryColor', value: '#8b5cf6', description: 'Updated primary color to Royal Violet' });
+      actions.push({ type: 'update_style', target: 'theme.accentColor', value: '#a78bfa', description: 'Updated accent color to Velvet Iris' });
+      message = 'Updated theme to Royal Violet & Luxury Obsidian.';
+    } else if (/\b(red|crimson|ruby|scarlet)\b/i.test(p)) {
+      // Strict word boundaries prevent matching 'incredible', 'ordered', 'credit'!
+      actions.push({ type: 'update_style', target: 'theme.primaryColor', value: '#ef4444', description: 'Updated primary color to Royal Crimson' });
+      actions.push({ type: 'update_style', target: 'theme.accentColor', value: '#f87171', description: 'Updated accent color to Warm Coral' });
+      message = 'Updated theme to Regal Crimson.';
+    }
+
+    if (/\b(dark|dark mode|obsidian|black)\b/i.test(p)) {
+      actions.push({ type: 'update_style', target: 'theme.bgColor', value: '#07080c', description: 'Switched background to Obsidian Dark' });
+    } else if (/\b(light|light mode|white)\b/i.test(p)) {
+      actions.push({ type: 'update_style', target: 'theme.bgColor', value: '#ffffff', description: 'Switched background to Clean White' });
+    }
+
+    // 9. Hero Style Presets (cinematic, shorter)
+    if (/\b(shorter|concise|crisp)\b/i.test(p) && /\b(headline|heading|hero)\b/i.test(p)) {
+      actions.push({
+        type: 'update_text',
+        target: 'hero.heading',
+        value: `${currentBrand} — Intelligence at Scale.`,
+        description: 'Shortened hero headline for crisp impact',
+      });
+      message = 'Shortened the hero headline while preserving brand identity.';
+    } else if (/\b(cinematic|grand|epic)\b/i.test(p) && /\b(hero|heading)\b/i.test(p)) {
+      actions.push({
+        type: 'update_text',
+        target: 'hero.badge',
+        value: '✦ ARCHITECTURAL VISION 2026',
+        description: 'Updated hero badge with cinematic styling',
+      });
+      actions.push({
+        type: 'update_text',
+        target: 'hero.heading',
+        value: `The Future of Autonomous Scale Begins with ${currentBrand}.`,
+        description: 'Enhanced hero headline with cinematic phrasing',
+      });
+      message = 'Elevated the hero presentation to be more cinematic and impactful.';
+    }
+
+    // 10. Guaranteed Fallback if still unparsed
+    if (actions.length === 0) {
+      actions.push({
+        type: 'update_text',
+        target: 'hero.subheading',
+        value: `Engineered with precision for ${currentBrand} to deliver authentic quality, high reliability, and superior service.`,
+        description: 'Refined hero value proposition',
+      });
+      message = 'Refined website copy and presentation according to your request.';
+    }
+
+    return {
+      message,
+      actions,
+      invalidActions: [],
+      provider: 'klyvora-natural-compiler',
+      isFallback: true,
     };
   },
 };

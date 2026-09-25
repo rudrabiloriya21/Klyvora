@@ -34,6 +34,8 @@ export default function LiveWebsiteRenderer({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [formSuccess, setFormSuccess] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
+  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState('ALL');
 
   const theme = project.theme || {};
   const brand = project.brand || {};
@@ -784,14 +786,26 @@ export default function LiveWebsiteRenderer({
                               <Star key={sIdx} size={13} fill="#f59e0b" color="#f59e0b" />
                             ))}
                           </div>
-                          <span className="trust-score font-mono">4.9 / 5.0</span>
+                          <span className="trust-score font-mono">{p.trustScore || '4.9 / 5.0'}</span>
                         </div>
                         <div className="hero-trust-divider" />
                         <div className="hero-trust-badge">
                           <ShieldCheck size={14} className="text-emerald" />
-                          <span>Verified Craft Standard</span>
+                          <span>{p.trustBadge || (brand.category === 'saas' ? 'Enterprise Verified • 99.9% Uptime' : brand.category === 'restaurant' ? 'Artisan Sourced & Patron Approved' : brand.category === 'salon' ? 'Certified Master Stylists' : 'Verified Quality Standard')}</span>
                         </div>
                       </div>
+
+                      {/* Hero Metrics Strip */}
+                      {Array.isArray(p.stats) && p.stats.length > 0 && (
+                        <div className="hero-metrics-strip">
+                          {p.stats.map((st, sIdx) => (
+                            <div key={sIdx} className="hero-metric-item">
+                              <span className="hero-metric-val font-mono">{st.value || st.number}</span>
+                              <span className="hero-metric-lbl">{st.label || st.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {p.imageUrl && (
@@ -806,11 +820,36 @@ export default function LiveWebsiteRenderer({
                           <div className="hero-img-overlay" />
                           <div className="hero-floating-chip">
                             <span className="chip-indicator" />
-                            <span className="chip-text font-mono">✦ SIGNATURE SELECTION</span>
+                            <span className="chip-text font-mono">
+                              {p.chipText || (brand.category === 'saas' ? '✦ LIVE CLOUD PLATFORM' : brand.category === 'restaurant' ? '✦ CHEF RESERVE' : brand.category === 'salon' ? '✦ SIGNATURE RITUAL' : '✦ PREMIER SELECTION')}
+                            </span>
                           </div>
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Standalone Stats & Metrics Section */}
+            {section.type === 'stats' && (
+              <section className="preview-section stats-area" id={section.id || 'stats'}>
+                <div className="preview-container">
+                  {p.heading && (
+                    <div className="preview-section-header" style={{ marginBottom: '36px' }}>
+                      {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                      <h2 className="preview-section-title">{p.heading}</h2>
+                      {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
+                    </div>
+                  )}
+                  <div className="stats-metric-grid">
+                    {(p.items || p.stats || []).map((st, i) => (
+                      <div key={i} className="preview-glass-card stat-metric-box">
+                        <div className="stat-metric-number font-mono">{st.value || st.number || st.stat}</div>
+                        <div className="stat-metric-label">{st.label || st.title || st.desc}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -873,55 +912,106 @@ export default function LiveWebsiteRenderer({
             )}
 
             {/* 6. Products / Menu */}
-            {section.type === 'products' && (
-              <section className="preview-section products-area">
+            {section.type === 'products' && (() => {
+              const allItems = p.items || [];
+              const rawTags = allItems.map((it) => it.tag).filter(Boolean);
+              const uniqueTags = ['ALL', ...Array.from(new Set(rawTags))];
+              const showFilter = uniqueTags.length > 2;
+              const displayedItems = activeCategoryFilter === 'ALL'
+                ? allItems
+                : allItems.filter((it) => it.tag?.toUpperCase() === activeCategoryFilter.toUpperCase());
+
+              return (
+                <section className="preview-section products-area">
+                  <div className="preview-container">
+                    <div className="preview-section-header">
+                      {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                      <h2 className="preview-section-title">{p.heading}</h2>
+                      {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
+
+                      {showFilter && (
+                        <div
+                          className="preview-category-filters"
+                          style={{
+                            display: 'flex',
+                            gap: '8px',
+                            justifyContent: 'center',
+                            flexWrap: 'wrap',
+                            marginTop: '16px',
+                          }}
+                        >
+                          {uniqueTags.map((tag) => {
+                            const isCurrent = activeCategoryFilter.toUpperCase() === tag.toUpperCase();
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => setActiveCategoryFilter(tag)}
+                                style={{
+                                  padding: '5px 14px',
+                                  borderRadius: '20px',
+                                  fontSize: '11px',
+                                  fontFamily: 'monospace',
+                                  letterSpacing: '0.04em',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  border: '1px solid',
+                                  borderColor: isCurrent ? 'var(--site-primary)' : 'rgba(255, 255, 255, 0.12)',
+                                  background: isCurrent ? 'var(--site-primary)' : 'rgba(255, 255, 255, 0.04)',
+                                  color: isCurrent ? '#000' : 'var(--site-text)',
+                                  transition: 'all 0.2s ease',
+                                }}
+                              >
+                                {tag}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="preview-cards-grid products-grid">
+                      {displayedItems.map((item, i) => (
+                        <div key={i} className="preview-glass-card product-box group">
+                          {item.imageUrl && (
+                            <div className="product-image-container">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="product-img"
+                                loading="lazy"
+                              />
+                              {item.tag && (
+                                <span className="product-image-tag font-mono">{item.tag}</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="product-box-body">
+                            <div className="product-head">
+                              <h3 className="product-title">{item.name}</h3>
+                              <span className="product-cost font-mono">{item.price}</span>
+                            </div>
+                            {!item.imageUrl && item.tag && (
+                              <span className="product-pill font-mono">{item.tag}</span>
+                            )}
+                            <p className="product-caption">{item.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
+
+            {/* 7. Features */}
+            {section.type === 'features' && (
+              <section className="preview-section features-area" id={section.id || 'features'}>
                 <div className="preview-container">
                   <div className="preview-section-header">
                     {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
                     <h2 className="preview-section-title">{p.heading}</h2>
                     {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
-                  </div>
-
-                  <div className="preview-cards-grid products-grid">
-                    {(p.items || []).map((item, i) => (
-                      <div key={i} className="preview-glass-card product-box group">
-                        {item.imageUrl && (
-                          <div className="product-image-container">
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name}
-                              className="product-img"
-                              loading="lazy"
-                            />
-                            {item.tag && (
-                              <span className="product-image-tag font-mono">{item.tag}</span>
-                            )}
-                          </div>
-                        )}
-                        <div className="product-box-body">
-                          <div className="product-head">
-                            <h3 className="product-title">{item.name}</h3>
-                            <span className="product-cost font-mono">{item.price}</span>
-                          </div>
-                          {!item.imageUrl && item.tag && (
-                            <span className="product-pill font-mono">{item.tag}</span>
-                          )}
-                          <p className="product-caption">{item.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* 7. Features */}
-            {section.type === 'features' && (
-              <section className="preview-section features-area">
-                <div className="preview-container">
-                  <div className="preview-section-header">
-                    {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
-                    <h2 className="preview-section-title">{p.heading}</h2>
                   </div>
 
                   <div className="preview-cards-grid features-grid">
@@ -931,7 +1021,7 @@ export default function LiveWebsiteRenderer({
                           <div className="feature-check-icon">
                             <CheckCircle size={18} />
                           </div>
-                          <span className="feature-idx font-mono">0{i + 1} // STANDARD</span>
+                          <span className="feature-idx font-mono">{f.tag || `0${i + 1} // CAPABILITY`}</span>
                         </div>
                         <h3 className="feature-head">{f.title}</h3>
                         <p className="feature-caption">{f.desc}</p>
@@ -944,11 +1034,12 @@ export default function LiveWebsiteRenderer({
 
             {/* 8. Testimonials */}
             {section.type === 'testimonials' && (
-              <section className="preview-section testimonials-area">
+              <section className="preview-section testimonials-area" id={section.id || 'testimonials'}>
                 <div className="preview-container">
                   <div className="preview-section-header">
                     {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
                     <h2 className="preview-section-title">{p.heading}</h2>
+                    {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
                   </div>
 
                   <div className="preview-cards-grid testimonials-grid">
@@ -992,17 +1083,84 @@ export default function LiveWebsiteRenderer({
 
             {/* 9. Pricing */}
             {section.type === 'pricing' && (
-              <section className="preview-section pricing-area">
+              <section className="preview-section pricing-area" id={section.id || 'pricing'}>
                 <div className="preview-container">
                   <div className="preview-section-header">
                     {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
                     <h2 className="preview-section-title">{p.heading}</h2>
                     {p.subheading && <p className="preview-section-desc">{p.subheading}</p>}
+                    
+                    {/* Interactive Monthly / Annual Billing Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '24px 0 12px 0' }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        padding: '4px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderRadius: '100px',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        backdropFilter: 'blur(10px)'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => setBillingCycle('monthly')}
+                          style={{
+                            padding: '8px 18px',
+                            borderRadius: '100px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            transition: 'all 0.2s ease',
+                            background: billingCycle === 'monthly' ? 'var(--site-primary, #6366f1)' : 'transparent',
+                            color: billingCycle === 'monthly' ? '#ffffff' : 'var(--text-muted, #94a3b8)',
+                          }}
+                        >
+                          Monthly
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBillingCycle('annual')}
+                          style={{
+                            padding: '8px 18px',
+                            borderRadius: '100px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            transition: 'all 0.2s ease',
+                            background: billingCycle === 'annual' ? 'var(--site-primary, #6366f1)' : 'transparent',
+                            color: billingCycle === 'annual' ? '#ffffff' : 'var(--text-muted, #94a3b8)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          Annual <span style={{ fontSize: '10px', background: 'rgba(34, 197, 94, 0.25)', color: '#4ade80', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>Save 20%</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="preview-cards-grid pricing-grid">
                     {(p.plans || []).map((plan, i) => {
                       const isPopular = plan.popular || i === 1;
+                      
+                      // Calculate interactive discounted price if annual
+                      let displayPrice = plan.price;
+                      let displayPeriod = plan.period || '/mo';
+                      if (billingCycle === 'annual' && plan.price) {
+                        const match = plan.price.match(/^([^0-9]*)([0-9,.]+)(.*)$/);
+                        if (match) {
+                          const prefix = match[1];
+                          const num = parseFloat(match[2].replace(/,/g, ''));
+                          const suffix = match[3];
+                          if (!isNaN(num) && num > 0) {
+                            displayPrice = `${prefix}${Math.round(num * 0.8).toLocaleString()}${suffix}`;
+                            displayPeriod = '/mo (billed annually)';
+                          }
+                        }
+                      }
+
                       return (
                         <div
                           key={i}
@@ -1015,8 +1173,8 @@ export default function LiveWebsiteRenderer({
                           )}
                           <h3 className="plan-name">{plan.name}</h3>
                           <div className="plan-amount-row">
-                            <span className="plan-number">{plan.price}</span>
-                            {plan.period && <span className="plan-interval">{plan.period}</span>}
+                            <span className="plan-number">{displayPrice}</span>
+                            {displayPeriod && <span className="plan-interval">{displayPeriod}</span>}
                           </div>
                           <p className="plan-description">{plan.desc}</p>
                           <ul className="plan-bullets">
@@ -1239,6 +1397,41 @@ export default function LiveWebsiteRenderer({
                           </button>
                         </form>
                       )}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 11. CTA Banner Section */}
+            {(section.type === 'cta' || section.type === 'cta_banner') && (
+              <section className="preview-section cta-banner-area" id={section.id || 'cta'}>
+                <div className="preview-container">
+                  <div className="preview-glass-card cta-banner-card">
+                    <div className="cta-banner-content">
+                      {p.badge && <span className="preview-subtag font-mono">{p.badge}</span>}
+                      <h2 className="cta-banner-heading">{p.heading || 'Ready to Elevate Your Experience?'}</h2>
+                      {p.subheading && <p className="cta-banner-subheading">{p.subheading}</p>}
+                      <div className="cta-banner-actions">
+                        {p.primaryBtnText && (
+                          <a
+                            href={p.primaryBtnUrl || '#contact'}
+                            className="preview-btn btn-brand"
+                            onClick={(e) => handleLinkAction(e, { url: p.primaryBtnUrl, label: p.primaryBtnText })}
+                          >
+                            {p.primaryBtnText} &rarr;
+                          </a>
+                        )}
+                        {p.secondaryBtnText && (
+                          <a
+                            href={p.secondaryBtnUrl || '#'}
+                            className="preview-btn btn-glass"
+                            onClick={(e) => handleLinkAction(e, { url: p.secondaryBtnUrl, label: p.secondaryBtnText })}
+                          >
+                            {p.secondaryBtnText}
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

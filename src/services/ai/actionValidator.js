@@ -50,8 +50,8 @@ export function validateActions(actions, _project) {
       continue;
     }
 
-    // Target is optional for create_page or add_section if value is provided
-    if (!action.target && action.type !== 'create_page' && action.type !== 'add_section') {
+    // Target is optional for create_page, add_section, or update_theme if value is provided
+    if (!action.target && action.type !== 'create_page' && action.type !== 'add_section' && action.type !== 'update_theme') {
       invalidActions.push({
         reason: 'Action missing target path',
         action,

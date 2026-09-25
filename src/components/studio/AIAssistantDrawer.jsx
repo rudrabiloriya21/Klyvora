@@ -25,14 +25,13 @@ export default function AIAssistantDrawer({
     },
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [pendingActions, setPendingActions] = useState(null);
   const chatScrollRef = useRef(null);
 
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [messages, isProcessing, pendingActions]);
+  }, [messages, isProcessing]);
 
   const handleSendMessage = async (customPrompt) => {
     const text = (customPrompt || inputPrompt).trim();
@@ -58,20 +57,22 @@ export default function AIAssistantDrawer({
         history: messages,
       });
 
+      // Instantly execute & apply mutations to the live preview canvas!
+      if (response.actions && response.actions.length > 0) {
+        onApplyActions(response.actions);
+      }
+
       const assistantMsg = {
         id: createMsgId('ai'),
         role: 'assistant',
         text: response.message,
+        actions: response.actions || [],
         isFallback: response.isFallback,
         provider: response.provider,
         timestamp: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
-
-      if (response.actions && response.actions.length > 0) {
-        setPendingActions(response.actions);
-      }
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -86,35 +87,6 @@ export default function AIAssistantDrawer({
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleAcceptPendingActions = () => {
-    if (!pendingActions) return;
-    onApplyActions(pendingActions);
-    setPendingActions(null);
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: createMsgId('msg_applied'),
-        role: 'system',
-        text: `✓ Successfully applied ${pendingActions.length} architectural mutations to the live preview.`,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-  };
-
-  const handleRejectPendingActions = () => {
-    setPendingActions(null);
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: createMsgId('msg_rejected'),
-        role: 'system',
-        text: 'Changes discarded. The live project state was preserved.',
-        timestamp: new Date().toISOString(),
-      },
-    ]);
   };
 
   if (!isOpen) return null;
@@ -163,6 +135,22 @@ export default function AIAssistantDrawer({
                 </div>
               )}
               <p className="ai-msg-text">{msg.text}</p>
+              {msg.actions && msg.actions.length > 0 && (
+                <div className="ai-applied-actions-card font-mono">
+                  <div className="applied-actions-header">
+                    <Check size={12} className="text-emerald" />
+                    <span>{msg.actions.length} MUTATION{msg.actions.length > 1 ? 'S' : ''} APPLIED LIVE</span>
+                  </div>
+                  <div className="applied-actions-chips">
+                    {msg.actions.map((act, idx) => (
+                      <div key={idx} className="applied-action-chip">
+                        <span className="applied-chip-type">{act.type}</span>
+                        <span className="applied-chip-desc">{act.description || act.target}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <span className="ai-msg-time font-mono">
                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
@@ -177,47 +165,7 @@ export default function AIAssistantDrawer({
             </div>
             <div className="ai-msg-bubble ai-thinking-bubble font-mono">
               <span className="thinking-spinner" />
-              <span>Analyzing project structure & synthesizing actions...</span>
-            </div>
-          </div>
-        )}
-
-        {/* Pending Actions Diff Card */}
-        {pendingActions && (
-          <div className="pending-actions-card glass-card">
-            <div className="pending-header font-mono">
-              <Sparkles size={14} className="text-cyan" />
-              <span>PROPOSED ARCHITECTURAL MUTATIONS ({pendingActions.length})</span>
-            </div>
-
-            <ul className="pending-actions-list">
-              {pendingActions.map((action, i) => (
-                <li key={i} className="pending-action-item">
-                  <span className="pending-type-tag font-mono">{action.type}</span>
-                  <span className="pending-desc">
-                    {action.description || `${action.target}: ${JSON.stringify(action.value).slice(0, 35)}...`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="pending-actions-btn-row">
-              <button
-                type="button"
-                onClick={handleAcceptPendingActions}
-                className="btn btn-primary btn-accept font-mono"
-              >
-                <Check size={14} />
-                <span>Apply to Preview</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleRejectPendingActions}
-                className="btn btn-secondary btn-reject font-mono"
-              >
-                <X size={14} />
-                <span>Discard</span>
-              </button>
+              <span>Analyzing project structure & applying mutations live...</span>
             </div>
           </div>
         )}

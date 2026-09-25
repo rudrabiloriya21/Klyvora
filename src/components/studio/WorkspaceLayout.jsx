@@ -12,6 +12,7 @@ import PublishModal from './PublishModal';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { storageService } from '../../services/storageService';
 import { getModelById } from '../../services/ai/modelRegistry';
+import { groqService } from '../../services/ai/groqService';
 import { executeActions } from '../../services/ai/actionExecutor';
 
 export default function WorkspaceLayout({
@@ -291,6 +292,24 @@ export default function WorkspaceLayout({
     );
   };
 
+  const handleDirectAiPrompt = async (promptText) => {
+    if (!promptText) return;
+    try {
+      const activeModel = selectedModel || getModelById('system-architect-1.2-neo');
+      const result = await groqService.processModificationPrompt({
+        prompt: promptText,
+        project,
+        history: [],
+        selectedModel: activeModel,
+      });
+      if (result.actions && result.actions.length > 0) {
+        handleApplyAiActions(result.actions);
+      }
+    } catch (err) {
+      console.warn('Failed executing direct AI prompt:', err);
+    }
+  };
+
   return (
     <div className="studio-workspace-container">
       {/* 1. Top Toolbar */}
@@ -388,9 +407,7 @@ export default function WorkspaceLayout({
             selectedSectionId={selectedSectionId}
             onClose={() => setShowInspector(false)}
             onUpdateSectionProps={handleUpdateSectionProps}
-            onApplyAiPrompt={(_prompt) => {
-              setLeftTab('ai');
-            }}
+            onApplyAiPrompt={handleDirectAiPrompt}
           />
         )}
       </div>
@@ -427,6 +444,7 @@ export default function WorkspaceLayout({
         isOpen={publishModalOpen}
         onClose={() => setPublishModalOpen(false)}
         project={project}
+        onUpdateProject={(updated) => commitProjectState(updated, 'Updated Publishing Configuration')}
       />
 
       <ProjectSettingsModal

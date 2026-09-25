@@ -1,4 +1,5 @@
 import { createSection } from '../../models/projectSchema.js';
+import { getCuratedPhoto } from './groqService.js';
 
 /**
  * Section type aliasing & normalization map
@@ -42,7 +43,36 @@ const SECTION_TYPE_ALIASES = {
   inquiry: 'contact',
   footer: 'footer',
   announcement: 'announcement',
+  stats: 'stats',
+  stat: 'stats',
+  metrics: 'stats',
+  metric: 'stats',
+  cta: 'cta_banner',
+  cta_banner: 'cta_banner',
+  calltoaction: 'cta_banner',
 };
+
+/**
+ * Sanitizes image URLs to guarantee crisp Unsplash photos and avoid broken dummy placeholders
+ */
+export function sanitizeImageUrl(url, category = 'saas', index = 0) {
+  if (!url || typeof url !== 'string') return getCuratedPhoto(category, index);
+  const u = url.toLowerCase().trim();
+  if (
+    u.includes('example.com') ||
+    u.includes('placeholder') ||
+    u.includes('dummyimage') ||
+    u.includes('via.placeholder') ||
+    u.includes('picsum.photos') ||
+    u.includes('lorempixel') ||
+    u.startsWith('undefined') ||
+    u.startsWith('null') ||
+    u === '#'
+  ) {
+    return getCuratedPhoto(category, index);
+  }
+  return url;
+}
 
 /**
  * Normalizes any section type string
@@ -122,7 +152,18 @@ export function executeActions(project, actions) {
         case 'update_section': {
           const found = findSection(next, action.target || action.sectionType || action.value?.type);
           if (found && found.section) {
-            const propsToMerge = action.value?.props ? action.value.props : (action.value || {});
+            const propsToMerge = action.value?.props ? { ...action.value.props } : (typeof action.value === 'object' ? { ...action.value } : {});
+            if (propsToMerge.imageUrl) {
+              propsToMerge.imageUrl = sanitizeImageUrl(propsToMerge.imageUrl, next.brand?.category || 'saas', 0);
+            }
+            if (Array.isArray(propsToMerge.items)) {
+              propsToMerge.items = propsToMerge.items.map((it, idx) => {
+                if (it && typeof it === 'object' && it.imageUrl) {
+                  return { ...it, imageUrl: sanitizeImageUrl(it.imageUrl, next.brand?.category || 'saas', idx) };
+                }
+                return it;
+              });
+            }
             found.section.props = { ...found.section.props, ...propsToMerge };
             if (action.value?.name) found.section.name = action.value.name;
             appliedCount++;
@@ -136,13 +177,20 @@ export function executeActions(project, actions) {
           if (found && found.section) {
             const sec = found.section;
             const normType = normalizeSectionType(sec.type);
+            const val = typeof action.value === 'object' && action.value ? { ...action.value } : action.value;
+            if (val && typeof val === 'object') {
+              if (val.price) val.price = sanitizeCurrencyRupee(val.price);
+              if (val.imageUrl) {
+                val.imageUrl = sanitizeImageUrl(val.imageUrl, next.brand?.category || 'saas', sec.props.items?.length || 0);
+              }
+            }
 
             if (normType === 'pricing') {
               if (!Array.isArray(sec.props.plans)) sec.props.plans = [];
-              sec.props.plans.push(action.value);
+              sec.props.plans.push(val);
             } else {
               if (!Array.isArray(sec.props.items)) sec.props.items = [];
-              sec.props.items.push(action.value);
+              sec.props.items.push(val);
             }
             appliedCount++;
             changeSummaries.push(action.description || `Added item to ${sec.name || sec.type}`);
@@ -159,7 +207,14 @@ export function executeActions(project, actions) {
             const idx = action.index !== undefined ? Number(action.index) : 0;
 
             if (Array.isArray(list) && list[idx]) {
-              list[idx] = typeof action.value === 'object' ? { ...list[idx], ...action.value } : action.value;
+              let updatedVal = typeof action.value === 'object' ? { ...list[idx], ...action.value } : action.value;
+              if (updatedVal && typeof updatedVal === 'object') {
+                if (updatedVal.price) updatedVal.price = sanitizeCurrencyRupee(updatedVal.price);
+                if (updatedVal.imageUrl) {
+                  updatedVal.imageUrl = sanitizeImageUrl(updatedVal.imageUrl, next.brand?.category || 'saas', idx);
+                }
+              }
+              list[idx] = updatedVal;
               appliedCount++;
               changeSummaries.push(action.description || `Updated item in ${sec.name || sec.type}`);
             }
@@ -230,14 +285,26 @@ export function executeActions(project, actions) {
             if (action.value?.name) newSec.name = action.value.name;
 
             const pos = action.value?.position || action.position;
-            if (pos === 'before_contact') {
-              const contactIdx = homePage.sections.findIndex((s) => s.type === 'contact');
-              if (contactIdx >= 0) homePage.sections.splice(contactIdx, 0, newSec);
-              else homePage.sections.push(newSec);
-            } else if (pos === 'after_hero') {
+            if (normType === 'announcement') {
+              // Announcement bars belong at the very top of the page
+              homePage.sections.unshift(newSec);
+            } else if (normType === 'navigation') {
+              // Navigation belongs after announcement or at index 0
+              const annIdx = homePage.sections.findIndex((s) => s.type === 'announcement');
+              if (annIdx >= 0) homePage.sections.splice(annIdx + 1, 0, newSec);
+              else homePage.sections.unshift(newSec);
+            } else if (normType === 'stats' || pos === 'after_hero') {
               const heroIdx = homePage.sections.findIndex((s) => s.type === 'hero');
               if (heroIdx >= 0) homePage.sections.splice(heroIdx + 1, 0, newSec);
               else homePage.sections.push(newSec);
+            } else if (normType === 'cta_banner' || pos === 'before_contact') {
+              const contactIdx = homePage.sections.findIndex((s) => s.type === 'contact');
+              if (contactIdx >= 0) homePage.sections.splice(contactIdx, 0, newSec);
+              else {
+                const footerIdx = homePage.sections.findIndex((s) => s.type === 'footer');
+                if (footerIdx >= 0) homePage.sections.splice(footerIdx, 0, newSec);
+                else homePage.sections.push(newSec);
+              }
             } else {
               const footerIdx = homePage.sections.findIndex((s) => s.type === 'footer');
               if (footerIdx >= 0) homePage.sections.splice(footerIdx, 0, newSec);
@@ -269,6 +336,27 @@ export function executeActions(project, actions) {
           break;
         }
 
+        case 'reorder_section': {
+          const homePage = next.pages?.find((p) => p.isHome) || next.pages?.[0];
+          if (homePage && action.target) {
+            const secIdx = homePage.sections.findIndex(
+              (s) => s.id === action.target || normalizeSectionType(s.type) === normalizeSectionType(action.target)
+            );
+            if (secIdx >= 0) {
+              const [moved] = homePage.sections.splice(secIdx, 1);
+              const newPos = typeof action.value === 'number'
+                ? action.value
+                : action.value === 'up'
+                ? Math.max(0, secIdx - 1)
+                : Math.min(homePage.sections.length, secIdx + 1);
+              homePage.sections.splice(newPos, 0, moved);
+              appliedCount++;
+              changeSummaries.push(action.description || `Reordered ${moved.name || moved.type} section`);
+            }
+          }
+          break;
+        }
+
         default:
           console.warn(`Action type ${action.type} handled without mutation.`);
       }
@@ -289,6 +377,14 @@ export function executeActions(project, actions) {
 }
 
 /**
+ * Sanitizes currency strings to ensure Indian Rupee format
+ */
+export function sanitizeCurrencyRupee(val) {
+  if (typeof val !== 'string') return val;
+  return val.replace(/^\$\s*/, '₹');
+}
+
+/**
  * Universal, fuzzy property mutator:
  * Resolves section properties, theme tokens, and brand values seamlessly.
  */
@@ -305,11 +401,44 @@ function applyFlexiblePropertyMutation(project, target, value) {
     return true;
   }
 
-  // 2. Direct Brand Mutations
-  if (path.startsWith('brand.') || ['businessName', 'tagline', 'location'].includes(path)) {
-    const key = path.replace(/^brand\./, '');
+  // 2. Direct Brand & Contact Mutations
+  if (
+    path.startsWith('brand.') ||
+    path.startsWith('contact.') ||
+    ['businessName', 'tagline', 'location', 'phone', 'whatsapp', 'email', 'address', 'hours'].includes(path)
+  ) {
     if (!project.brand) project.brand = {};
-    project.brand[key] = value;
+    const key = path.replace(/^brand\./, '');
+
+    // Support nested brand paths e.g. "contact.phone", "contact.whatsapp", "social.instagram"
+    if (key.includes('.')) {
+      const parts = key.split('.');
+      let cur = project.brand;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!cur[parts[i]]) cur[parts[i]] = {};
+        cur = cur[parts[i]];
+      }
+      cur[parts[parts.length - 1]] = value;
+    } else if (['phone', 'whatsapp', 'email', 'address', 'hours', 'openingHours'].includes(key)) {
+      if (!project.brand.contact) project.brand.contact = {};
+      const contactKey = key === 'hours' ? 'openingHours' : key;
+      project.brand.contact[contactKey] = value;
+    } else {
+      project.brand[key] = value;
+    }
+
+    // Simultaneously sync with contact section in homePage if contact fields were updated
+    if (
+      key.startsWith('contact.') ||
+      ['phone', 'whatsapp', 'email', 'address', 'hours', 'openingHours'].includes(key)
+    ) {
+      const field = key.replace(/^contact\./, '');
+      const contactSec = findSection(project, 'contact');
+      if (contactSec && contactSec.section) {
+        if (!contactSec.section.props) contactSec.section.props = {};
+        contactSec.section.props[field] = value;
+      }
+    }
     return true;
   }
 
@@ -331,6 +460,16 @@ function applyFlexiblePropertyMutation(project, target, value) {
   // If no prop path was extracted (e.g. target was just "hero"), default to "heading"
   if (!propPath) {
     propPath = 'heading';
+  }
+
+  // Auto rupee sanitization for pricing properties
+  if (propPath.toLowerCase().includes('price') || propPath.toLowerCase().includes('fee')) {
+    value = sanitizeCurrencyRupee(value);
+  }
+
+  // Auto image sanitization for image properties
+  if (propPath.toLowerCase().includes('image') || propPath.toLowerCase().includes('photo')) {
+    value = sanitizeImageUrl(value, project.brand?.category || 'saas', 0);
   }
 
   const found = findSection(project, sectionIdentifier);

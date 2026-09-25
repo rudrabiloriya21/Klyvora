@@ -16,6 +16,8 @@ import {
   Sparkles,
   Zap,
   Wand2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import BrandLogo from '../BrandLogo';
 import { storageService } from '../../services/storageService';
@@ -662,26 +664,43 @@ export default function DashboardView({
             className="modal-content glass-card glass-card-elevated delete-modal-box"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="modal-title font-display">Delete Project?</h3>
-            <p className="delete-modal-text">
-              Are you sure you want to delete{' '}
-              <strong>&ldquo;{deleteConfirmProject.metadata?.name}&rdquo;</strong>? You can
-              immediately undo this action using the restore toast if clicked by mistake.
-            </p>
-            <div className="delete-modal-actions font-mono">
-              <button
-                type="button"
-                onClick={() => handleDelete(deleteConfirmProject)}
-                className="btn btn-primary btn-confirm-delete"
-              >
-                Delete Project
-              </button>
+            <div className="modal-header">
+              <div className="modal-title-wrap">
+                <AlertTriangle size={20} className="text-rose" />
+                <h3 className="modal-title font-display">Delete Project?</h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setDeleteConfirmProject(null)}
-                className="btn btn-secondary"
+                className="modal-close-btn"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <p className="delete-modal-text">
+                Are you sure you want to delete{' '}
+                <strong className="text-white">&ldquo;{deleteConfirmProject.metadata?.name}&rdquo;</strong>? You can
+                immediately undo this action using the restore toast if clicked by mistake.
+              </p>
+            </div>
+
+            <div className="modal-footer delete-modal-footer font-mono">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmProject(null)}
+                className="btn btn-secondary text-xs"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteConfirmProject)}
+                className="btn btn-primary btn-confirm-delete text-xs"
+              >
+                Delete Project
               </button>
             </div>
           </div>
