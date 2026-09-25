@@ -25,8 +25,8 @@ export function getSeedTemplates() {
       location: 'Johari Bazaar, Jaipur, Rajasthan 302003',
       contact: {
         email: 'orders@kavyasarees.in',
-        phone: '+91 98290 12345',
-        whatsapp: '+919829012345',
+        phone: '+91 00000 00000',
+        whatsapp: '+910000000000',
         address: '142 Johari Bazaar, Pink City, Jaipur, Rajasthan 302003',
         openingHours: 'Mon–Sat: 10:30 AM – 8:30 PM (Sunday Closed)',
       },
@@ -138,8 +138,8 @@ export function getSeedTemplates() {
       location: 'Vigyan Nagar, Kota, Rajasthan 324005',
       contact: {
         email: 'admissions@apexkota.edu.in',
-        phone: '+91 744 2456789',
-        whatsapp: '+917442456789',
+        phone: '+91 00000 00000',
+        whatsapp: '+910000000000',
         address: 'Plot 42, Knowledge Park, Vigyan Nagar, Kota, Rajasthan 324005',
         openingHours: 'Mon–Sun: 7:00 AM – 8:00 PM',
       },
@@ -238,8 +238,8 @@ export function getSeedTemplates() {
       location: 'Pali Hill, Bandra West, Mumbai, Maharashtra 400050',
       contact: {
         email: 'hello@royalsaffron.in',
-        phone: '+91 98200 54321',
-        whatsapp: '+919820054321',
+        phone: '+91 00000 00000',
+        whatsapp: '+910000000000',
         address: 'Pali Hill, Bandra West, Mumbai, Maharashtra 400050',
         openingHours: 'Mon–Sun: 7:30 AM – 11:00 PM',
       },
@@ -330,8 +330,8 @@ export function getSeedTemplates() {
       location: '100ft Road, Indiranagar, Bengaluru, Karnataka 560038',
       contact: {
         email: 'sales@vyaparai.in',
-        phone: '+91 80 4123 9999',
-        whatsapp: '+918041239999',
+        phone: '+91 00000 00000',
+        whatsapp: '+910000000000',
         address: '742, 100 Feet Road, Indiranagar, Bengaluru, Karnataka 560038',
         openingHours: '24/7 Cloud Engine // Mon–Fri Office Support',
       },

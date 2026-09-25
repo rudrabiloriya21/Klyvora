@@ -473,10 +473,38 @@ export function validateEntireWebsite(project, websiteContext, sitemapPlan = nul
     }
   }
 
-  // 4. Validate Brand & SEO
+  // 4. Validate Brand & SEO & Privacy
   if (sanitized.brand) {
     sanitized.brand.businessName = effectiveBrandName;
     sanitized.brand.category = industry;
+
+    if (sanitized.brand.contact) {
+      const isUnsafePhone = (str) => {
+        if (!str || typeof str !== 'string') return true;
+        const clean = str.replace(/[^0-9]/g, '');
+        return (
+          clean.length < 10 ||
+          clean.includes('9876543210') ||
+          clean.includes('9820012345') ||
+          clean.includes('9829012345') ||
+          clean.includes('7442456789') ||
+          clean.includes('9987054321') ||
+          clean.includes('9820054321') ||
+          clean.includes('8041239999') ||
+          clean.includes('0000000000') ||
+          clean.endsWith('0000000000') ||
+          /^0+$/.test(clean) ||
+          /^(\d)\1{7,}$/.test(clean)
+        );
+      };
+
+      if (isUnsafePhone(sanitized.brand.contact.phone)) {
+        sanitized.brand.contact.phone = '+91 00000 00000';
+      }
+      if (isUnsafePhone(sanitized.brand.contact.whatsapp)) {
+        sanitized.brand.contact.whatsapp = '+910000000000';
+      }
+    }
   }
   if (sanitized.seo) {
     sanitized.seo.title = `${effectiveBrandName} — Official Website`;

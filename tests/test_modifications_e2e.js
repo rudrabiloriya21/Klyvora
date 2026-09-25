@@ -70,8 +70,8 @@ async function runEndToEndModificationSuite() {
       verify: (res) => res.actions.some(a => a.target === 'hero.primaryBtnText' && a.value === 'Book a Test Ride')
     },
     {
-      prompt: 'Change phone number to +91 98765 43210',
-      verify: (res) => res.actions.some(a => a.target === 'contact.phone' && a.value.includes('98765'))
+      prompt: 'Change phone number to +91 98000 11111',
+      verify: (res) => res.actions.some(a => a.target === 'contact.phone' && a.value.includes('98000'))
     },
     {
       prompt: 'Add direct 1-tap WhatsApp order button',

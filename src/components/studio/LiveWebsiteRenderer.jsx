@@ -201,6 +201,28 @@ export default function LiveWebsiteRenderer({
     }
   };
 
+  const isSafeInteractivePhoneNumber = (phoneStr) => {
+    if (!phoneStr || typeof phoneStr !== 'string') return false;
+    const clean = phoneStr.replace(/[^0-9]/g, '');
+    if (clean.length < 10) return false;
+    if (
+      clean.includes('9876543210') ||
+      clean.includes('9820012345') ||
+      clean.includes('9829012345') ||
+      clean.includes('7442456789') ||
+      clean.includes('9987054321') ||
+      clean.includes('9820054321') ||
+      clean.includes('8041239999') ||
+      clean.includes('0000000000') ||
+      clean.endsWith('0000000000') ||
+      /^0+$/.test(clean) ||
+      /^(\d)\1{7,}$/.test(clean)
+    ) {
+      return false;
+    }
+    return true;
+  };
+
   const handleLinkAction = (e, { url = '', label = '', actionType = '' }) => {
     if (e) {
       if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -218,11 +240,12 @@ export default function LiveWebsiteRenderer({
       normUrl === '#whatsapp' ||
       actionType === 'whatsapp'
     ) {
-      const rawDigits = (
-        brand.contact?.whatsapp ||
-        brand.contact?.phone ||
-        '919820012345'
-      ).replace(/[^0-9]/g, '');
+      const waCandidate = brand.contact?.whatsapp || brand.contact?.phone || '';
+      if (!isSafeInteractivePhoneNumber(waCandidate)) {
+        alert('This website is currently using a placeholder phone number (+91 00000 00000). Please update your verified business phone number in the Studio Brand Settings to activate WhatsApp ordering.');
+        return;
+      }
+      const rawDigits = waCandidate.replace(/[^0-9]/g, '');
       const waUrl = `https://wa.me/${rawDigits}?text=${encodeURIComponent(
         `Hello ${brand.businessName || 'Team'}! I would like to place an order / make an enquiry.`
       )}`;
@@ -232,9 +255,14 @@ export default function LiveWebsiteRenderer({
 
     // 2. Phone Call (tel:)
     if (normUrl.startsWith('tel:') || actionType === 'tel' || normLabel.includes('call')) {
-      const tel = normUrl.startsWith('tel:')
-        ? normUrl
-        : `tel:${brand.contact?.phone || '+919820012345'}`;
+      const phoneCandidate = normUrl.startsWith('tel:')
+        ? normUrl.replace(/^tel:/, '')
+        : (brand.contact?.phone || '');
+      if (!isSafeInteractivePhoneNumber(phoneCandidate)) {
+        alert('This website is currently using a placeholder phone number (+91 00000 00000). Please update your verified business phone number in the Studio Brand Settings to activate direct calling.');
+        return;
+      }
+      const tel = `tel:${phoneCandidate.trim()}`;
       window.open(tel, '_self');
       return;
     }

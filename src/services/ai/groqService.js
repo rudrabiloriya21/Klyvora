@@ -351,6 +351,7 @@ ${websiteContext.vocabulary.join(', ')}
 5. NO REPETITION: Every feature and section must have a distinct purpose and value proposition.
 6. CURRENCY: All prices, fees, and catalog items MUST be in Indian Rupees (₹) unless explicitly requested otherwise.
 7. WORLD-CLASS COPYWRITING: Write crisp, punchy, persuasive copy like senior creative directors at Apple, Linear, or Stripe. Ensure headlines are memorable, benefit-driven, and specific to "${websiteContext.brandName}".
+8. PRIVACY & SAFETY: NEVER generate real personal phone numbers (e.g. +91 98765 43210). Use safe fictional "+91 00000 00000" or toll-free format unless the user explicitly provided their own phone number.
 
 You MUST output a valid JSON object matching this schema exactly:
 {
@@ -359,9 +360,9 @@ You MUST output a valid JSON object matching this schema exactly:
   "tagline": "Compelling, memorable tagline (under 12 words)",
   "description": "Comprehensive brand summary and value proposition (2-3 sentences)",
   "location": "City, State, India",
-  "phone": "+91 98765 43210",
+  "phone": "+91 00000 00000",
   "email": "contact@domain.in",
-  "whatsapp": "+919876543210",
+  "whatsapp": "+910000000000",
   "hours": "Operating hours e.g. Mon–Sun: 9:00 AM – 8:00 PM",
   "theme": {
     "primaryColor": "${designSystem.primaryColor}",
@@ -571,6 +572,60 @@ OUTPUT RAW JSON ONLY.`;
       provider: `groq (${modelUsed})`,
       isFallback: false,
     };
+  },
+
+  /**
+   * Phone and WhatsApp privacy sanitizer:
+   * Replaces known mock numbers that belong to real persons with safe non-assigned fictional numbers.
+   */
+  sanitizeSafePhoneNumber(phoneStr) {
+    if (!phoneStr || typeof phoneStr !== 'string') return '+91 00000 00000';
+    const clean = phoneStr.replace(/[^0-9]/g, '');
+    if (
+      clean.includes('9876543210') ||
+      clean.includes('9820012345') ||
+      clean.includes('9811054321') ||
+      clean.includes('9820045678') ||
+      clean.includes('9900011223') ||
+      clean.includes('9829012345') ||
+      clean.includes('9987054321') ||
+      clean.includes('7442456789') ||
+      clean.includes('8041239999') ||
+      clean.includes('8045678900') ||
+      clean.includes('8041239876') ||
+      clean.includes('8023456789') ||
+      clean.endsWith('0000000000') ||
+      clean === '910000000000' ||
+      clean === '0000000000'
+    ) {
+      return '+91 00000 00000';
+    }
+    return phoneStr;
+  },
+
+  sanitizeSafeWhatsAppNumber(waStr) {
+    if (!waStr || typeof waStr !== 'string') return '+910000000000';
+    const clean = waStr.replace(/[^0-9]/g, '');
+    if (
+      clean.includes('9876543210') ||
+      clean.includes('9820012345') ||
+      clean.includes('9811054321') ||
+      clean.includes('9820045678') ||
+      clean.includes('9900011223') ||
+      clean.includes('9829012345') ||
+      clean.includes('9987054321') ||
+      clean.includes('7442456789') ||
+      clean.includes('8041239999') ||
+      clean.includes('8045678900') ||
+      clean.includes('8041239876') ||
+      clean.includes('8023456789') ||
+      clean.endsWith('0000000000') ||
+      clean === '910000000000' ||
+      clean === '0000000000'
+    ) {
+      return '+910000000000';
+    }
+    return waStr;
   },
 
   /**
@@ -834,8 +889,8 @@ OUTPUT RAW JSON ONLY.`;
         location: data.location || (context.industry === INDUSTRY_TYPES.SAAS ? 'HSR Layout, Bengaluru' : 'Bandra West, Mumbai'),
         contact: {
           email: data.email || `contact@${brandName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'brand'}.in`,
-          phone: data.phone || '+91 98200 12345',
-          whatsapp: data.whatsapp || '+919820012345',
+          phone: this.sanitizeSafePhoneNumber(data.phone),
+          whatsapp: this.sanitizeSafeWhatsAppNumber(data.whatsapp),
           address: data.location || 'Cyber Hub, Gurugram, India',
           openingHours: data.hours || 'Mon–Sat: 9:30 AM – 8:30 PM',
         },
@@ -887,9 +942,9 @@ OUTPUT RAW JSON ONLY.`;
         tagline: 'Autonomous AI Automation & Agentic Workflows for High-Growth Teams',
         description: 'Enterprise-grade cloud platform for deploying self-improving AI agents, automating mission-critical workflows, and integrating seamlessly with your tech stack.',
         location: 'HSR Layout, Bengaluru, Karnataka',
-        phone: '+91 80 4567 8900',
+        phone: '+91 00000 00000',
         email: `contact@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'nexora'}.io`,
-        whatsapp: '+918045678900',
+        whatsapp: '+910000000000',
         hours: 'Mon–Fri: 9:00 AM – 7:00 PM IST',
         theme: {
           primaryColor: '#06b6d4',
@@ -955,9 +1010,9 @@ OUTPUT RAW JSON ONLY.`;
           tagline: 'Artisanal Omakase & Traditional Edomae Sushi',
           description: 'An intimate Japanese culinary sanctuary offering multi-course omakase seatings, fresh Toyosu market selections, and curated sake pairings.',
           location: 'Lavelle Road, Bengaluru, Karnataka',
-          phone: '+91 80 4123 9876',
+          phone: '+91 00000 00000',
           email: `reservations@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'matsu'}.in`,
-          whatsapp: '+918041239876',
+          whatsapp: '+910000000000',
           hours: 'Tue–Sun: 6:00 PM – 11:30 PM (Closed Mondays)',
           theme: { primaryColor: '#f59e0b', secondaryColor: '#ef4444', accentColor: '#fbbf24', bgColor: '#0c0a09', borderRadius: '14px' },
           hero: {
@@ -1004,9 +1059,9 @@ OUTPUT RAW JSON ONLY.`;
         tagline: 'Authentic Royal Mughlai & Heritage Flavors',
         description: 'Iconic fine dining restaurant serving slow-cooked dum biryanis, melt-in-mouth galouti kebabs, and rich gravies in a regal palace ambiance.',
         location: 'Connaught Place, New Delhi',
-        phone: '+91 98110 54321',
+        phone: '+91 00000 00000',
         email: `reservations@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'dining'}.in`,
-        whatsapp: '+919811054321',
+        whatsapp: '+910000000000',
         hours: 'Mon–Sun: 12:30 PM – 11:30 PM',
         theme: { primaryColor: '#ef4444', secondaryColor: '#f59e0b', accentColor: '#f43f5e', bgColor: '#06070a', borderRadius: '14px' },
         hero: { heading: `${brand} — Royal Culinary Heritage on Your Platter.`, subheading: 'Slow-cooked handi biryanis, artisanal tandoori platters, and authentic family recipes passed down generations.', badge: '✦ PREMIER HERITAGE DINING', primaryBtnText: 'Reserve Table', secondaryBtnText: 'Explore Menu' },
@@ -1050,9 +1105,9 @@ OUTPUT RAW JSON ONLY.`;
         tagline: 'Bespoke Balayage, Precision Cuts & Restorative Hair Rituals',
         description: 'Contemporary hair sanctuary and aesthetics lounge providing signature color transformations, botanical scalp therapy, and personalized styling.',
         location: 'Linking Road, Bandra West, Mumbai',
-        phone: '+91 98200 45678',
+        phone: '+91 00000 00000',
         email: `appointments@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'luxe'}.in`,
-        whatsapp: '+919820045678',
+        whatsapp: '+910000000000',
         hours: 'Tue–Sun: 10:00 AM – 8:30 PM (Closed Mondays)',
         theme: { primaryColor: '#ec4899', secondaryColor: '#8b5cf6', accentColor: '#f43f5e', bgColor: '#09080c', borderRadius: '16px' },
         hero: {
@@ -1105,9 +1160,9 @@ OUTPUT RAW JSON ONLY.`;
         tagline: 'Engineering High-Impact Digital Brands & Products',
         description: 'Boutique design and engineering studio partnering with venture-backed tech startups and ambitious brands to launch world-class digital experiences.',
         location: 'Indiranagar, Bengaluru, Karnataka',
-        phone: '+91 80 2345 6789',
+        phone: '+91 00000 00000',
         email: `hello@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'studio'}.in`,
-        whatsapp: '+918023456789',
+        whatsapp: '+910000000000',
         hours: 'Mon–Fri: 9:30 AM – 6:30 PM IST',
         theme: { primaryColor: '#f43f5e', secondaryColor: '#8b5cf6', accentColor: '#fb7185', bgColor: '#09090b', borderRadius: '12px' },
         hero: {
@@ -1161,9 +1216,9 @@ OUTPUT RAW JSON ONLY.`;
         tagline: 'Crafting High-Throughput Distributed Systems & Reactive UIs',
         description: 'Full-stack systems engineer focused on high-concurrency cloud architecture, microservices, scalable web performance, and developer tooling.',
         location: 'Bengaluru, Karnataka',
-        phone: '+91 99000 11223',
+        phone: '+91 00000 00000',
         email: `arjun@${brand.toLowerCase().replace(/[^a-z0-9]/g, '') || 'dev'}.io`,
-        whatsapp: '+919900011223',
+        whatsapp: '+910000000000',
         hours: 'Mon–Fri: Available for Advisory & Staff Roles',
         theme: { primaryColor: '#10b981', secondaryColor: '#06b6d4', accentColor: '#34d399', bgColor: '#06080d', borderRadius: '10px' },
         hero: {
@@ -1210,9 +1265,9 @@ OUTPUT RAW JSON ONLY.`;
       tagline: 'Modern High-Impact Digital Solutions & Products',
       description: 'Empowering ambitious businesses with scalable architecture, human-centric design, and reliable performance.',
       location: 'HSR Layout, Bengaluru, Karnataka',
-      phone: '+91 80 4567 8900',
+      phone: '+91 00000 00000',
       email: 'contact@domain.in',
-      whatsapp: '+918045678900',
+      whatsapp: '+910000000000',
       hours: 'Mon–Sat: 9:00 AM – 7:00 PM IST',
       theme: { primaryColor: '#06b6d4', secondaryColor: '#8b5cf6', accentColor: '#38bdf8', bgColor: '#06070a', borderRadius: '14px' },
       hero: { heading: `${brand} — Engineered for Performance, Designed for Modern Impact.`, subheading: 'We build resilient systems and intuitive digital products that elevate your brand and accelerate operational velocity.', badge: '✦ INTENTIONAL DIGITAL ARCHITECTURE', primaryBtnText: 'Start Free Trial', secondaryBtnText: 'Schedule Consultation' },

@@ -20,6 +20,37 @@ const getStorage = () => {
   };
 };
 
+const isDummyOrLeakedPhone = (phoneStr) => {
+  if (!phoneStr || typeof phoneStr !== 'string') return false;
+  const clean = phoneStr.replace(/[^0-9]/g, '');
+  if (clean.length < 10) return false;
+  return (
+    clean.includes('9876543210') ||
+    clean.includes('9820012345') ||
+    clean.includes('9829012345') ||
+    clean.includes('7442456789') ||
+    clean.includes('9987054321') ||
+    clean.includes('9820054321') ||
+    clean.includes('8041239999')
+  );
+};
+
+const sanitizeProjectPrivacy = (project) => {
+  if (!project) return { project, modified: false };
+  let modified = false;
+  if (project.brand && project.brand.contact) {
+    if (isDummyOrLeakedPhone(project.brand.contact.phone)) {
+      project.brand.contact.phone = '+91 00000 00000';
+      modified = true;
+    }
+    if (isDummyOrLeakedPhone(project.brand.contact.whatsapp)) {
+      project.brand.contact.whatsapp = '+910000000000';
+      modified = true;
+    }
+  }
+  return { project, modified };
+};
+
 export const storageService = {
   /**
    * Initializes storage with sample seed projects if empty
@@ -76,7 +107,18 @@ export const storageService = {
       if (!Array.isArray(parsed) || parsed.length === 0) {
         return this.initStorage();
       }
-      return parsed;
+      let hadModifications = false;
+      const sanitized = parsed.map((p) => {
+        const { project, modified } = sanitizeProjectPrivacy(p);
+        if (modified) hadModifications = true;
+        return project;
+      });
+      if (hadModifications) {
+        try {
+          getStorage().setItem(STORAGE_KEY, JSON.stringify(sanitized));
+        } catch (_) {}
+      }
+      return sanitized;
     } catch (err) {
       console.error('Failed to load projects from storage', err);
       return getSeedTemplates();

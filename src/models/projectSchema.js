@@ -53,8 +53,8 @@ export function createDefaultBrand(overrides = {}) {
     location: 'Cyber Hub, Gurugram, India',
     contact: {
       email: 'contact@venturestudio.in',
-      phone: '+91 98765 43210',
-      whatsapp: '+919876543210',
+      phone: '+91 00000 00000',
+      whatsapp: '+910000000000',
       address: 'Floor 8, Tower B, Cyber Hub, Gurugram, Haryana 122002',
       openingHours: 'Mon–Fri: 9:00 AM – 7:00 PM IST',
     },
